@@ -329,6 +329,29 @@ body {
   transition: all 0.2s; font-family: inherit;
 }
 .quiz-count-btn.active { border-color: var(--accent); background: var(--accent-light); color: var(--accent); }
+/* ===== Quiz Result List ===== */
+.qr-item { border:1px solid var(--border); border-radius:12px; margin-bottom:8px; overflow:hidden; background:var(--surface); }
+.qr-item.wrong { border-color:var(--danger); }
+.qr-item.correct { border-color:var(--success); }
+.qr-item-header { display:flex; align-items:center; gap:8px; padding:12px 14px; cursor:pointer; user-select:none; }
+.qr-item-header:hover { background:var(--bg); }
+.qr-icon { font-size:18px; flex-shrink:0; }
+.qr-q-text { flex:1; font-size:13px; line-height:1.4; color:var(--text); }
+.qr-badge { font-size:11px; background:var(--bg); color:var(--text-secondary); padding:2px 7px; border-radius:10px; flex-shrink:0; white-space:nowrap; }
+.qr-item-body { display:none; padding:0 14px 14px; font-size:13px; }
+.qr-item.open .qr-item-body { display:block; }
+.qr-item.open .qr-arrow { transform:rotate(90deg); }
+.qr-arrow { transition:transform 0.25s; font-style:normal; display:inline-block; }
+.qr-full-q { background:var(--bg); border-radius:8px; padding:10px 12px; margin-bottom:10px; line-height:1.7; font-size:14px; }
+.qr-answers { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:10px; }
+.qr-answer { padding:6px 12px; border-radius:8px; font-size:13px; }
+.qr-answer.correct { background:#e5f9e5; color:#1a6b1a; }
+[data-theme="dark"] .qr-answer.correct { background:#1a3a1a; color:#30d158; }
+.qr-answer.wrong { background:#ffe5e5; color:#9b1c1c; }
+[data-theme="dark"] .qr-answer.wrong { background:#3a1a1a; color:#ff453a; }
+.qr-explanation { background:var(--accent-light); border-left:3px solid var(--accent); border-radius:6px; padding:10px 12px; margin-bottom:10px; line-height:1.7; }
+.qr-explanation-title { font-weight:700; color:var(--accent); display:block; margin-bottom:4px; font-size:12px; }
+.qr-tb-btn { width:100%; margin-top:4px; }
 /* ===== Utility ===== */
 .text-danger { color: var(--danger); }
 .text-success { color: var(--success); }
@@ -606,10 +629,7 @@ body {
         <div class="card-title">分野別結果</div>
         <div id="quizResultBySubject"></div>
       </div>
-      <div class="card">
-        <div class="card-title">問題一覧</div>
-        <div id="quizResultList"></div>
-      </div>
+      <div id="quizResultList"></div>
       <div style="display:flex;gap:8px">
         <button class="btn btn-secondary" id="quizBackToSetup" style="flex:1">戻る</button>
         <button class="btn btn-primary" id="quizRetry" style="flex:1">もう一度</button>
@@ -2235,19 +2255,57 @@ function finishQuiz() {
     </div>`;
   }).join('');
 
-  // Question list
+  // Question list (detailed with answers, explanation, textbook link)
   const listContainer = document.getElementById('quizResultList');
-  listContainer.innerHTML = quizSession.questions.map((q, i) => {
+  const wrongCount = quizSession.answers.filter(a => !a.isCorrect).length;
+  const qItems = quizSession.questions.map((q, i) => {
     const a = quizSession.answers[i];
     const icon = a.isCorrect ? '✅' : '❌';
     const subShort = SUBJECTS.find(s => s.id === q.subjectId)?.short || '';
-    return `<div class="history-item">
-      <div style="flex:1">
-        <div class="text-sm">${icon} ${q.question.slice(0, 50)}${q.question.length > 50 ? '...' : ''}</div>
-        <div class="text-sm text-secondary">${subShort}</div>
+    let userAnswerText, correctAnswerText;
+    if (q.type === 'ox') {
+      userAnswerText = a.userAnswer === true ? '○' : '×';
+      correctAnswerText = q.answer === true ? '○' : '×';
+    } else {
+      userAnswerText = q.choices?.[a.userAnswer] ?? '-';
+      correctAnswerText = q.choices?.[q.answer] ?? '-';
+    }
+    return `<div class="qr-item ${a.isCorrect ? 'correct' : 'wrong'}" id="qri-${i}">
+      <div class="qr-item-header" onclick="document.getElementById('qri-${i}').classList.toggle('open')">
+        <span class="qr-icon">${icon}</span>
+        <span class="qr-q-text">Q${i+1}. ${q.question.slice(0, 38)}${q.question.length > 38 ? '…' : ''}</span>
+        <span class="qr-badge">${subShort}</span>
+        <i class="qr-arrow">▶</i>
+      </div>
+      <div class="qr-item-body">
+        <p class="qr-full-q">${q.question}</p>
+        <div class="qr-answers">
+          <div class="qr-answer ${a.isCorrect ? 'correct' : 'wrong'}">あなた: <strong>${userAnswerText}</strong></div>
+          ${!a.isCorrect ? `<div class="qr-answer correct">正解: <strong>${correctAnswerText}</strong></div>` : ''}
+        </div>
+        ${q.explanation ? `<div class="qr-explanation"><span class="qr-explanation-title">💡 解説</span>${q.explanation}</div>` : ''}
+        ${q.source ? `<div class="text-sm text-secondary" style="margin-bottom:8px">📌 出典: ${q.source}</div>` : ''}
+        <button class="btn btn-sm btn-secondary qr-tb-btn" onclick="openTextbookFromQuiz('${q.subjectId}')">📖 関連テキストを見る（${SUBJECTS.find(s => s.id === q.subjectId)?.short || ''}）</button>
       </div>
     </div>`;
   }).join('');
+
+  listContainer.innerHTML = `<div class="card" style="padding:0;overflow:visible">
+    <div style="padding:14px 16px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">
+      <div class="card-title" style="margin:0">📋 問題一覧</div>
+      ${wrongCount > 0 ? `<button class="btn btn-sm btn-secondary" onclick="qrExpandWrong()">❌ 間違いをすべて開く</button>` : '<span style="font-size:13px;color:var(--success)">🎊 全問正解！</span>'}
+    </div>
+    <div style="padding:12px">${qItems}</div>
+  </div>`;
+}
+
+function qrExpandWrong() {
+  document.querySelectorAll('.qr-item.wrong').forEach(el => el.classList.add('open'));
+}
+
+function openTextbookFromQuiz(subjectId) {
+  tbCurrentSubject = subjectId;
+  switchTab('textbook');
 }
 
 function quitQuiz() {
