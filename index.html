@@ -1,0 +1,3136 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="FP3級">
+<meta name="theme-color" content="#0071e3">
+<link rel="manifest" href="data:application/json,{&quot;name&quot;:&quot;FP3級 学習マネージャー&quot;,&quot;short_name&quot;:&quot;FP3級&quot;,&quot;start_url&quot;:&quot;.&quot;,&quot;display&quot;:&quot;standalone&quot;,&quot;background_color&quot;:&quot;%23f5f5f7&quot;,&quot;theme_color&quot;:&quot;%230071e3&quot;,&quot;icons&quot;:[{&quot;src&quot;:&quot;data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📘</text></svg>&quot;,&quot;sizes&quot;:&quot;any&quot;,&quot;type&quot;:&quot;image/svg+xml&quot;}]}">
+<title>FP3級 学習マネージャー</title>
+<!-- Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<style>
+/* ===== CSS Variables & Reset ===== */
+:root {
+  --bg: #f5f5f7;
+  --surface: #ffffff;
+  --text: #1d1d1f;
+  --text-secondary: #6e6e73;
+  --accent: #0071e3;
+  --accent-light: #e8f2fe;
+  --success: #34c759;
+  --warning: #ff9f0a;
+  --danger: #ff3b30;
+  --border: #d2d2d7;
+  --radius: 12px;
+  --shadow: 0 1px 3px rgba(0,0,0,0.08);
+  --shadow-lg: 0 4px 12px rgba(0,0,0,0.1);
+  --nav-height: 56px;
+  --tab-height: 52px;
+}
+[data-theme="dark"] {
+  --bg: #1c1c1e;
+  --surface: #2c2c2e;
+  --text: #f5f5f7;
+  --text-secondary: #98989d;
+  --accent: #0a84ff;
+  --accent-light: #1a2a3a;
+  --success: #30d158;
+  --warning: #ffd60a;
+  --danger: #ff453a;
+  --border: #48484a;
+  --shadow: 0 1px 3px rgba(0,0,0,0.3);
+  --shadow-lg: 0 4px 12px rgba(0,0,0,0.4);
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Noto Sans JP', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  padding-bottom: calc(var(--tab-height) + 20px);
+}
+/* ===== Header ===== */
+.header {
+  position: sticky; top: 0; z-index: 100;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 16px; height: var(--nav-height);
+  box-shadow: var(--shadow);
+}
+.header h1 { font-size: 18px; font-weight: 700; }
+.header-actions { display: flex; gap: 8px; }
+.icon-btn {
+  background: none; border: none; color: var(--text);
+  width: 36px; height: 36px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; font-size: 18px; transition: background 0.2s;
+}
+.icon-btn:hover { background: var(--accent-light); }
+/* ===== Tab Bar ===== */
+.tab-bar {
+  position: fixed; bottom: 0; left: 0; right: 0; z-index: 100;
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  display: flex; height: var(--tab-height);
+  padding-bottom: env(safe-area-inset-bottom, 0);
+  box-shadow: 0 -1px 3px rgba(0,0,0,0.06);
+}
+.tab-btn {
+  flex: 1; display: flex; flex-direction: column; align-items: center;
+  justify-content: center; gap: 2px;
+  background: none; border: none; color: var(--text-secondary);
+  font-size: 10px; cursor: pointer; transition: color 0.2s;
+  padding: 4px 0;
+}
+.tab-btn .tab-icon { font-size: 20px; line-height: 1; }
+.tab-btn.active { color: var(--accent); }
+.tab-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+/* ===== Screen Container ===== */
+.screen { display: none; padding: 16px; max-width: 600px; margin: 0 auto; }
+.screen.active { display: block; }
+/* ===== Cards ===== */
+.card {
+  background: var(--surface);
+  border-radius: var(--radius);
+  padding: 16px;
+  margin-bottom: 12px;
+  box-shadow: var(--shadow);
+}
+.card-title {
+  font-size: 13px; font-weight: 600; color: var(--text-secondary);
+  margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px;
+}
+/* ===== Stats Row ===== */
+.stats-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
+.stat-card {
+  background: var(--surface); border-radius: var(--radius);
+  padding: 14px; box-shadow: var(--shadow); text-align: center;
+}
+.stat-value { font-size: 28px; font-weight: 700; color: var(--accent); }
+.stat-label { font-size: 12px; color: var(--text-secondary); margin-top: 2px; }
+/* ===== Progress Bars ===== */
+.progress-bar-container { margin-bottom: 10px; }
+.progress-label {
+  display: flex; justify-content: space-between; align-items: center;
+  font-size: 13px; margin-bottom: 4px;
+}
+.progress-bar {
+  height: 8px; background: var(--border); border-radius: 4px; overflow: hidden;
+}
+.progress-fill {
+  height: 100%; border-radius: 4px; transition: width 0.5s ease;
+}
+.progress-fill.good { background: var(--success); }
+.progress-fill.ok { background: var(--warning); }
+.progress-fill.bad { background: var(--danger); }
+/* ===== Subject Cards ===== */
+.subject-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.subject-card {
+  background: var(--surface); border-radius: var(--radius);
+  padding: 12px; box-shadow: var(--shadow); position: relative;
+  border-left: 4px solid var(--border);
+}
+.subject-card.weak { border-left-color: var(--danger); }
+.subject-card.strong { border-left-color: var(--success); }
+.subject-card.medium { border-left-color: var(--warning); }
+.subject-name { font-size: 12px; font-weight: 600; margin-bottom: 6px; line-height: 1.3; }
+.subject-rate { font-size: 22px; font-weight: 700; }
+.subject-meta { font-size: 11px; color: var(--text-secondary); margin-top: 4px; }
+.badge {
+  display: inline-block; font-size: 10px; font-weight: 600;
+  padding: 2px 6px; border-radius: 4px; margin-top: 4px;
+}
+.badge-danger { background: #ffe5e5; color: var(--danger); }
+[data-theme="dark"] .badge-danger { background: #3a1a1a; }
+.badge-warning { background: #fff5e0; color: #c87800; }
+[data-theme="dark"] .badge-warning { background: #3a2a10; }
+.badge-success { background: #e5f9e5; color: #1a8a1a; }
+[data-theme="dark"] .badge-success { background: #1a3a1a; }
+/* ===== Todo Items ===== */
+.todo-item {
+  display: flex; align-items: flex-start; gap: 10px;
+  padding: 10px 0; border-bottom: 1px solid var(--border);
+}
+.todo-item:last-child { border-bottom: none; }
+.todo-check {
+  width: 22px; height: 22px; border-radius: 50%;
+  border: 2px solid var(--border); background: none;
+  cursor: pointer; flex-shrink: 0; margin-top: 2px; transition: all 0.2s;
+}
+.todo-check.done { background: var(--success); border-color: var(--success); }
+.todo-text { font-size: 14px; flex: 1; }
+.todo-text .todo-subject { font-size: 11px; color: var(--accent); display: block; }
+/* ===== Forms ===== */
+.form-group { margin-bottom: 14px; }
+.form-label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 4px; }
+.form-input, .form-select, .form-textarea {
+  width: 100%; padding: 10px 12px; border: 1px solid var(--border);
+  border-radius: 8px; font-size: 16px; background: var(--surface);
+  color: var(--text); transition: border-color 0.2s;
+  font-family: inherit;
+}
+.form-input:focus, .form-select:focus, .form-textarea:focus {
+  outline: none; border-color: var(--accent);
+}
+.form-textarea { resize: vertical; min-height: 60px; }
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  padding: 12px 24px; border: none; border-radius: 8px;
+  font-size: 15px; font-weight: 600; cursor: pointer;
+  transition: opacity 0.2s; font-family: inherit; width: 100%;
+}
+.btn:active { opacity: 0.8; }
+.btn-primary { background: var(--accent); color: #fff; }
+.btn-secondary { background: var(--border); color: var(--text); }
+.btn-sm { padding: 8px 16px; font-size: 13px; width: auto; }
+/* ===== Chart (CSS-based) ===== */
+.chart-bars { display: flex; align-items: flex-end; gap: 6px; height: 150px; padding: 0 4px; }
+.chart-bar-wrapper {
+  flex: 1; display: flex; flex-direction: column; align-items: center;
+  height: 100%; justify-content: flex-end;
+}
+.chart-bar {
+  width: 100%; max-width: 40px; border-radius: 4px 4px 0 0;
+  transition: height 0.5s ease; min-height: 2px;
+}
+.chart-bar-label { font-size: 10px; color: var(--text-secondary); margin-top: 4px; text-align: center; }
+.chart-bar-value { font-size: 11px; font-weight: 600; margin-bottom: 2px; }
+/* Line chart (simple CSS) */
+.line-chart { position: relative; height: 160px; margin: 16px 0; }
+.line-chart-svg { width: 100%; height: 100%; }
+/* ===== Mock Exam List ===== */
+.mock-item {
+  padding: 12px 0; border-bottom: 1px solid var(--border);
+}
+.mock-item:last-child { border-bottom: none; }
+.mock-header { display: flex; justify-content: space-between; align-items: center; }
+.mock-name { font-weight: 600; font-size: 14px; }
+.mock-score { font-size: 20px; font-weight: 700; }
+.mock-date { font-size: 12px; color: var(--text-secondary); }
+.mock-bars { margin-top: 8px; }
+/* ===== Weekly Plan ===== */
+.week-plan-item {
+  padding: 10px 0; border-bottom: 1px solid var(--border);
+}
+.week-plan-item:last-child { border-bottom: none; }
+.week-label { font-weight: 600; font-size: 14px; color: var(--accent); }
+.week-subjects { font-size: 13px; color: var(--text-secondary); margin-top: 4px; }
+.week-target { font-size: 12px; color: var(--text-secondary); margin-top: 2px; }
+/* ===== Suggestion ===== */
+.suggestion-card {
+  background: var(--accent-light);
+  border-radius: var(--radius);
+  padding: 14px; margin-bottom: 12px;
+  border: 1px solid var(--accent);
+}
+.suggestion-title { font-size: 14px; font-weight: 700; color: var(--accent); margin-bottom: 6px; }
+.suggestion-text { font-size: 13px; }
+/* ===== Streak Badge ===== */
+.streak-display { text-align: center; padding: 8px; }
+.streak-flame { font-size: 32px; }
+.streak-count { font-size: 24px; font-weight: 700; color: var(--warning); }
+.streak-label { font-size: 12px; color: var(--text-secondary); }
+/* ===== History List ===== */
+.history-item {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 10px 0; border-bottom: 1px solid var(--border);
+  font-size: 13px;
+}
+.history-item:last-child { border-bottom: none; }
+/* ===== Empty State ===== */
+.empty-state {
+  text-align: center; padding: 32px 16px; color: var(--text-secondary);
+}
+.empty-state .empty-icon { font-size: 48px; margin-bottom: 12px; }
+.empty-state p { font-size: 14px; margin-bottom: 8px; }
+/* ===== Toast ===== */
+.toast {
+  position: fixed; bottom: 70px; left: 50%; transform: translateX(-50%);
+  background: var(--text); color: var(--bg); padding: 10px 20px;
+  border-radius: 20px; font-size: 14px; z-index: 200;
+  opacity: 0; transition: opacity 0.3s; pointer-events: none;
+}
+.toast.show { opacity: 1; }
+/* ===== Modal ===== */
+.modal-overlay {
+  display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5);
+  z-index: 150; align-items: flex-end; justify-content: center;
+}
+.modal-overlay.show { display: flex; }
+.modal {
+  background: var(--surface); border-radius: 16px 16px 0 0;
+  width: 100%; max-width: 600px; max-height: 85vh;
+  overflow-y: auto; padding: 20px; padding-bottom: calc(20px + env(safe-area-inset-bottom, 0));
+}
+.modal-title { font-size: 18px; font-weight: 700; margin-bottom: 16px; }
+/* ===== Quiz ===== */
+.quiz-option {
+  display: block; width: 100%; text-align: left;
+  padding: 14px 16px; margin-bottom: 8px;
+  background: var(--surface); border: 2px solid var(--border);
+  border-radius: 10px; font-size: 15px; color: var(--text);
+  cursor: pointer; transition: all 0.2s; font-family: inherit;
+  line-height: 1.5;
+}
+.quiz-option:hover { border-color: var(--accent); background: var(--accent-light); }
+.quiz-option:disabled { cursor: default; }
+.quiz-option:disabled:hover { border-color: var(--border); background: var(--surface); }
+.quiz-option.correct { border-color: var(--success); background: #e5f9e5; }
+[data-theme="dark"] .quiz-option.correct { background: #1a3a1a; }
+.quiz-option.wrong { border-color: var(--danger); background: #ffe5e5; }
+[data-theme="dark"] .quiz-option.wrong { background: #3a1a1a; }
+.quiz-question-text {
+  font-size: 15px; line-height: 1.7; margin-bottom: 16px;
+  padding: 14px; background: var(--bg); border-radius: 8px;
+}
+.quiz-explanation {
+  margin-top: 16px; padding: 14px;
+  background: var(--accent-light); border-radius: 8px;
+  border-left: 4px solid var(--accent);
+  font-size: 13px; line-height: 1.7;
+}
+.quiz-explanation-title { font-weight: 700; color: var(--accent); margin-bottom: 6px; }
+.quiz-progress {
+  display: flex; gap: 4px; margin-bottom: 16px;
+}
+.quiz-progress-dot {
+  flex: 1; height: 6px; border-radius: 3px; background: var(--border);
+  transition: background 0.3s;
+}
+.quiz-progress-dot.correct { background: var(--success); }
+.quiz-progress-dot.wrong { background: var(--danger); }
+.quiz-progress-dot.current { background: var(--accent); }
+.quiz-result-card {
+  text-align: center; padding: 24px 16px;
+}
+.quiz-result-score { font-size: 48px; font-weight: 700; }
+.quiz-result-label { font-size: 14px; color: var(--text-secondary); margin-top: 4px; }
+.quiz-source { font-size: 11px; color: var(--text-secondary); margin-top: 8px; }
+.quiz-filter-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+.quiz-chip {
+  padding: 6px 12px; border-radius: 16px; font-size: 12px; font-weight: 600;
+  border: 1px solid var(--border); background: var(--surface);
+  color: var(--text); cursor: pointer; transition: all 0.2s;
+}
+.quiz-chip.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+.quiz-count-select { display: flex; gap: 8px; margin-bottom: 16px; }
+.quiz-count-btn {
+  flex: 1; padding: 10px; border: 2px solid var(--border);
+  border-radius: 8px; background: var(--surface); color: var(--text);
+  font-size: 15px; font-weight: 600; cursor: pointer; text-align: center;
+  transition: all 0.2s; font-family: inherit;
+}
+.quiz-count-btn.active { border-color: var(--accent); background: var(--accent-light); color: var(--accent); }
+/* ===== Utility ===== */
+.text-danger { color: var(--danger); }
+.text-success { color: var(--success); }
+.text-warning { color: var(--warning); }
+.text-accent { color: var(--accent); }
+.text-secondary { color: var(--text-secondary); }
+.text-sm { font-size: 12px; }
+.text-center { text-align: center; }
+.mt-8 { margin-top: 8px; }
+.mt-12 { margin-top: 12px; }
+.mb-8 { margin-bottom: 8px; }
+.mb-12 { margin-bottom: 12px; }
+.flex-between { display: flex; justify-content: space-between; align-items: center; }
+.hidden { display: none !important; }
+/* ===== Responsive ===== */
+@media (min-width: 600px) {
+  .subject-grid { grid-template-columns: 1fr 1fr 1fr; }
+  .stats-row { grid-template-columns: repeat(4, 1fr); }
+}
+/* ===== Accessibility ===== */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition-duration: 0.01ms !important; }
+}
+:focus-visible {
+  outline: 2px solid var(--accent); outline-offset: 2px;
+}
+@media print { .tab-bar, .header { display: none; } }
+/* ===== Textbook ===== */
+.tb-subject-btn { padding:6px 12px; border-radius:20px; border:1px solid var(--border); background:var(--surface); color:var(--text-secondary); font-size:12px; cursor:pointer; transition:all 0.2s; }
+.tb-subject-btn.active { background:var(--accent); color:#fff; border-color:var(--accent); }
+.tb-chapter { border:1px solid var(--border); border-radius:12px; margin-bottom:10px; overflow:hidden; background:var(--surface); }
+.tb-chapter-header { display:flex; justify-content:space-between; align-items:center; padding:14px 16px; cursor:pointer; font-weight:600; font-size:15px; user-select:none; }
+.tb-chapter-header:hover { background:var(--bg); }
+.tb-chapter-arrow { transition:transform 0.25s; font-style:normal; }
+.tb-chapter.open .tb-chapter-arrow { transform:rotate(90deg); }
+.tb-chapter-body { display:none; padding:0 16px 16px; font-size:14px; line-height:1.8; color:var(--text); }
+.tb-chapter.open .tb-chapter-body { display:block; }
+.tb-chapter-body h4 { font-size:13px; font-weight:700; color:var(--accent); margin:14px 0 4px; border-left:3px solid var(--accent); padding-left:8px; }
+.tb-chapter-body p { margin:4px 0; }
+.tb-chapter-body ul { margin:4px 0 4px 16px; padding:0; }
+.tb-chapter-body li { margin:3px 0; }
+.tb-chapter-body table { width:100%; border-collapse:collapse; margin:8px 0; font-size:13px; }
+.tb-chapter-body th { background:var(--accent); color:#fff; padding:6px 8px; text-align:left; }
+.tb-chapter-body td { padding:5px 8px; border-bottom:1px solid var(--border); vertical-align:top; }
+.tb-chapter-body tr:nth-child(even) td { background:var(--bg); }
+.tb-point { background:var(--warning); color:#333; border-radius:4px; padding:2px 6px; font-size:12px; font-weight:700; margin-left:4px; }
+.tb-ng { background:var(--danger); color:#fff; border-radius:4px; padding:2px 6px; font-size:12px; font-weight:700; margin-left:4px; }
+.tb-box { background:var(--bg); border:1px solid var(--border); border-radius:8px; padding:10px 12px; margin:8px 0; font-size:13px; }
+/* ===== Auth / Loading Overlays ===== */
+.overlay { position:fixed; inset:0; z-index:2000; display:flex; align-items:center; justify-content:center; flex-direction:column; }
+.overlay.hidden { display:none; }
+#authOverlay { background:var(--bg); }
+#loadingOverlay { background:rgba(255,255,255,0.85); backdrop-filter:blur(4px); }
+[data-theme="dark"] #loadingOverlay { background:rgba(0,0,0,0.75); }
+.auth-card { background:var(--surface); border-radius:20px; padding:36px 28px; max-width:340px; width:90%; text-align:center; box-shadow:0 8px 32px rgba(0,0,0,0.12); }
+.auth-card h2 { font-size:20px; margin:12px 0 8px; }
+.auth-card p { color:var(--text-secondary); font-size:14px; line-height:1.6; margin-bottom:24px; }
+.btn-google { display:flex; align-items:center; justify-content:center; gap:10px; width:100%; padding:12px; background:#fff; color:#333; border:1px solid #ddd; border-radius:10px; font-size:15px; font-weight:600; cursor:pointer; box-shadow:0 2px 6px rgba(0,0,0,0.1); }
+.btn-google:hover { background:#f5f5f5; }
+.btn-google svg { width:20px; height:20px; flex-shrink:0; }
+.loading-spinner { width:40px; height:40px; border:4px solid var(--border); border-top-color:var(--accent); border-radius:50%; animation:spin 0.8s linear infinite; margin-bottom:12px; }
+@keyframes spin { to { transform:rotate(360deg); } }
+#loadingOverlay p { color:var(--text-secondary); font-size:14px; }
+.user-chip { display:flex; align-items:center; gap:6px; font-size:12px; color:var(--text-secondary); background:var(--bg); border:1px solid var(--border); border-radius:20px; padding:4px 10px; cursor:pointer; }
+.user-chip img { width:20px; height:20px; border-radius:50%; }
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<header class="header" role="banner">
+  <h1>FP3級 学習マネージャー</h1>
+  <div class="header-actions">
+    <button class="icon-btn" id="resetBtn" aria-label="データ初期化" title="データ初期化">🔄</button>
+    <button class="icon-btn" id="themeToggle" aria-label="テーマ切替" title="ダークモード切替">🌙</button>
+    <button class="user-chip hidden" id="userChip" title="ログアウト">
+      <img id="userPhoto" src="" alt="">
+      <span id="userName">ログイン中</span>
+    </button>
+  </div>
+</header>
+
+<!-- Auth Overlay -->
+<div class="overlay" id="authOverlay">
+  <div class="auth-card">
+    <div style="font-size:52px">📘</div>
+    <h2>FP3級 学習マネージャー</h2>
+    <p>MacとiPhoneでデータを同期するには<br>Googleアカウントでログインしてください</p>
+    <button class="btn-google" id="googleSignInBtn">
+      <svg viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.08 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.31-8.16 2.31-6.26 0-11.57-3.59-13.46-8.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/><path fill="none" d="M0 0h48v48H0z"/></svg>
+      Googleでログイン
+    </button>
+  </div>
+</div>
+
+<!-- Loading Overlay -->
+<div class="overlay hidden" id="loadingOverlay">
+  <div class="loading-spinner"></div>
+  <p>データを読み込み中...</p>
+</div>
+
+<!-- Screens -->
+<main id="appMain" role="main">
+
+  <!-- Dashboard -->
+  <section class="screen active" id="screen-dashboard" aria-label="ダッシュボード">
+    <div class="card">
+      <div class="flex-between mb-8">
+        <div class="card-title" style="margin-bottom:0">試験日まで</div>
+        <div id="examDateDisplay" class="text-sm text-secondary">未設定</div>
+      </div>
+      <div id="daysLeft" class="stat-value text-center" style="font-size:36px;">--</div>
+      <div class="text-center text-sm text-secondary">日</div>
+    </div>
+
+    <div class="stats-row" id="dashStats">
+      <div class="stat-card">
+        <div class="stat-value" id="statWeeklyHours">0</div>
+        <div class="stat-label">今週の学習(分)</div>
+      </div>
+      <div class="stat-card">
+        <div class="streak-flame">🔥</div>
+        <div class="streak-count" id="statStreak">0</div>
+        <div class="streak-label">連続学習日</div>
+      </div>
+    </div>
+
+    <!-- Quick Quiz CTA on Dashboard -->
+    <div class="card" style="background:var(--accent);color:#fff;cursor:pointer" onclick="switchTab('quiz')">
+      <div style="display:flex;align-items:center;gap:12px">
+        <span style="font-size:32px">📝</span>
+        <div>
+          <div style="font-weight:700;font-size:16px">過去問クイズに挑戦</div>
+          <div style="font-size:13px;opacity:0.9">FP3級の実際の過去問で力試し</div>
+        </div>
+        <span style="margin-left:auto;font-size:20px">→</span>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">📋 今日やること</div>
+      <div id="todayTodos"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">📊 分野別 進捗</div>
+      <div class="subject-grid" id="subjectGrid"></div>
+    </div>
+
+    <div id="dashWeakAlert"></div>
+  </section>
+
+  <!-- Study Plan -->
+  <section class="screen" id="screen-plan" aria-label="学習計画">
+    <div class="card">
+      <div class="card-title">🗓 試験日設定</div>
+      <div class="form-group">
+        <label class="form-label" for="examDateInput">試験日</label>
+        <input type="date" class="form-input" id="examDateInput">
+      </div>
+      <button class="btn btn-primary" id="saveExamDate">保存して計画を作成</button>
+    </div>
+    <div id="planSuggestion"></div>
+    <div class="card">
+      <div class="card-title">📅 週間学習計画</div>
+      <div id="weeklyPlan">
+        <div class="empty-state">
+          <div class="empty-icon">📅</div>
+          <p>試験日を設定すると、自動で学習計画が作成されます</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Study Log -->
+  <section class="screen" id="screen-log" aria-label="学習記録">
+    <div class="card">
+      <div class="card-title">✏️ 学習を記録する</div>
+      <div class="form-group">
+        <label class="form-label" for="logDate">日付</label>
+        <input type="date" class="form-input" id="logDate">
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="logSubject">学習分野</label>
+        <select class="form-select" id="logSubject"></select>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label" for="logMinutes">学習時間(分)</label>
+          <input type="number" class="form-input" id="logMinutes" min="1" max="480" placeholder="30">
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="logQuestions">問題数</label>
+          <input type="number" class="form-input" id="logQuestions" min="0" max="999" placeholder="10">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="logCorrect">正解数</label>
+        <input type="number" class="form-input" id="logCorrect" min="0" max="999" placeholder="7">
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="logMemo">ひとことメモ</label>
+        <textarea class="form-textarea" id="logMemo" placeholder="学んだこと、気づきなど..." rows="2"></textarea>
+      </div>
+      <button class="btn btn-primary" id="saveLog">記録する</button>
+    </div>
+    <div class="card">
+      <div class="flex-between mb-8">
+        <div class="card-title" style="margin-bottom:0">分野別サマリー</div>
+      </div>
+      <div id="subjectSummary"></div>
+    </div>
+    <div class="card">
+      <div class="card-title">📝 最近の記録</div>
+      <div id="recentLogs"></div>
+    </div>
+  </section>
+
+  <!-- Quiz -->
+  <section class="screen" id="screen-quiz" aria-label="過去問クイズ">
+    <!-- Quiz Setup -->
+    <div id="quizSetup">
+      <div class="card">
+        <div class="card-title">📝 過去問クイズ</div>
+        <p class="text-sm text-secondary mb-12">FP3級の過去問から出題します。分野を選んで挑戦しましょう。</p>
+        <div class="card-title mt-12">分野を選択</div>
+        <div class="quiz-filter-chips" id="quizSubjectChips"></div>
+        <div class="card-title mt-12">出題数</div>
+        <div class="quiz-count-select" id="quizCountSelect">
+          <button class="quiz-count-btn active" data-count="5">5問</button>
+          <button class="quiz-count-btn" data-count="10">10問</button>
+          <button class="quiz-count-btn" data-count="0">全問</button>
+        </div>
+        <button class="btn btn-primary mt-8" id="startQuiz">クイズを開始</button>
+      </div>
+      <div class="card">
+        <div class="card-title">📊 クイズ成績</div>
+        <div id="quizHistory"></div>
+      </div>
+      <div class="card" style="cursor:pointer" onclick="switchTab('mock')">
+        <div style="display:flex;align-items:center;gap:10px">
+          <span style="font-size:24px">📋</span>
+          <div style="flex:1">
+            <div style="font-weight:600;font-size:14px">模試結果を記録する</div>
+            <div class="text-sm text-secondary">模試の得点・分野別結果を管理</div>
+          </div>
+          <span style="color:var(--text-secondary)">→</span>
+        </div>
+      </div>
+    </div>
+    <!-- Quiz In Progress -->
+    <div id="quizActive" class="hidden">
+      <div class="card">
+        <div class="flex-between mb-8">
+          <div class="card-title" style="margin-bottom:0" id="quizProgressLabel">問題 1 / 5</div>
+          <button class="btn btn-sm btn-secondary" id="quizQuit">やめる</button>
+        </div>
+        <div class="quiz-progress" id="quizProgressBar"></div>
+        <div id="quizSubjectBadge" class="mb-8"></div>
+        <div class="quiz-question-text" id="quizQuestionText"></div>
+        <div id="quizOptions"></div>
+        <div id="quizExplanation" class="hidden"></div>
+        <button class="btn btn-primary mt-12 hidden" id="quizNext">次の問題 →</button>
+      </div>
+    </div>
+    <!-- Quiz Result -->
+    <div id="quizResult" class="hidden">
+      <div class="card quiz-result-card">
+        <div style="font-size:48px;margin-bottom:8px">🎉</div>
+        <div class="quiz-result-score" id="quizResultScore">0%</div>
+        <div class="quiz-result-label">正答率</div>
+        <div id="quizResultDetail" class="mt-12"></div>
+      </div>
+      <div class="card">
+        <div class="card-title">分野別結果</div>
+        <div id="quizResultBySubject"></div>
+      </div>
+      <div class="card">
+        <div class="card-title">問題一覧</div>
+        <div id="quizResultList"></div>
+      </div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-secondary" id="quizBackToSetup" style="flex:1">戻る</button>
+        <button class="btn btn-primary" id="quizRetry" style="flex:1">もう一度</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- Mock Exam (hidden screen, accessible from quiz) -->
+  <section class="screen" id="screen-mock" aria-label="模試結果">
+    <div class="card">
+      <div class="card-title">📝 模試結果を記録</div>
+      <button class="btn btn-primary" id="openMockModal">模試結果を追加</button>
+    </div>
+    <div class="card">
+      <div class="card-title">📈 総合得点の推移</div>
+      <div id="mockScoreChart">
+        <div class="empty-state"><div class="empty-icon">📈</div><p>模試結果を追加すると推移が表示されます</p></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">📋 模試結果一覧</div>
+      <div id="mockList">
+        <div class="empty-state"><div class="empty-icon">📝</div><p>まだ模試結果がありません</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Textbook -->
+  <section class="screen" id="screen-textbook" aria-label="テキスト">
+    <div class="card" style="padding:12px">
+      <div style="display:flex;gap:6px;flex-wrap:wrap" id="tbSubjectBtns"></div>
+    </div>
+    <div id="tbContent"></div>
+  </section>
+
+  <!-- Weakness Analysis -->
+  <section class="screen" id="screen-weakness" aria-label="弱点分析">
+    <div id="weaknessSuggestion"></div>
+    <div class="card">
+      <div class="card-title">📊 分野別正答率</div>
+      <div id="weaknessRateBars"></div>
+    </div>
+    <div class="card">
+      <div class="card-title">⏱ 分野別学習時間</div>
+      <div id="weaknessTimeBars"></div>
+    </div>
+    <div class="card">
+      <div class="card-title">🎯 分野別詳細</div>
+      <div id="weaknessDetails"></div>
+    </div>
+  </section>
+</main>
+
+<!-- Tab Bar -->
+<nav class="tab-bar" role="tablist" aria-label="メインナビゲーション">
+  <button class="tab-btn active" data-tab="dashboard" role="tab" aria-selected="true">
+    <span class="tab-icon">🏠</span>ホーム
+  </button>
+  <button class="tab-btn" data-tab="plan" role="tab" aria-selected="false">
+    <span class="tab-icon">📅</span>計画
+  </button>
+  <button class="tab-btn" data-tab="log" role="tab" aria-selected="false">
+    <span class="tab-icon">✏️</span>記録
+  </button>
+  <button class="tab-btn" data-tab="quiz" role="tab" aria-selected="false">
+    <span class="tab-icon">📝</span>クイズ
+  </button>
+  <button class="tab-btn" data-tab="textbook" role="tab" aria-selected="false">
+    <span class="tab-icon">📖</span>テキスト
+  </button>
+  <button class="tab-btn" data-tab="weakness" role="tab" aria-selected="false">
+    <span class="tab-icon">🔍</span>弱点
+  </button>
+</nav>
+
+<!-- Mock Exam Modal -->
+<div class="modal-overlay" id="mockModal">
+  <div class="modal">
+    <div class="modal-title">模試結果を記録</div>
+    <div class="form-group">
+      <label class="form-label" for="mockName">模試名</label>
+      <input type="text" class="form-input" id="mockName" placeholder="例: 第1回模擬試験">
+    </div>
+    <div class="form-group">
+      <label class="form-label" for="mockDate">実施日</label>
+      <input type="date" class="form-input" id="mockDate">
+    </div>
+    <div class="form-group">
+      <label class="form-label" for="mockTotalScore">総合得点(%)</label>
+      <input type="number" class="form-input" id="mockTotalScore" min="0" max="100" placeholder="65">
+    </div>
+    <div class="card-title mt-12">分野別正答率(%)</div>
+    <div id="mockSubjectInputs"></div>
+    <div style="display:flex;gap:8px;margin-top:16px;">
+      <button class="btn btn-secondary" id="closeMockModal" style="flex:1;">キャンセル</button>
+      <button class="btn btn-primary" id="saveMock" style="flex:1;">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+/* ========================================
+   FP3級 学習マネージャー — Main Script
+   ======================================== */
+
+// ===== Constants =====
+const SUBJECTS = [
+  { id: 'life', name: 'ライフプランニングと資金計画', short: 'ライフ' },
+  { id: 'risk', name: 'リスク管理', short: 'リスク' },
+  { id: 'finance', name: '金融資産運用', short: '金融' },
+  { id: 'tax', name: 'タックスプランニング', short: 'タックス' },
+  { id: 'realestate', name: '不動産', short: '不動産' },
+  { id: 'inheritance', name: '相続・事業承継', short: '相続' },
+];
+
+const STORAGE_KEY = 'fp3_study_app';
+
+// ===== Firebase =====
+// ↓↓↓ Firebaseコンソールからコピーした設定をここに貼り付けてください ↓↓↓
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyAqK_7YuqIJkOAlVjjmWEVHZJ2HtVUrbW0",
+  authDomain: "fp3-study.firebaseapp.com",
+  projectId: "fp3-study",
+  storageBucket: "fp3-study.firebasestorage.app",
+  messagingSenderId: "599116793988",
+  appId: "1:599116793988:web:27850a1e7999d8fbc29ad1"
+};
+// ↑↑↑ ここまで ↑↑↑
+
+firebase.initializeApp(FIREBASE_CONFIG);
+const fbAuth = firebase.auth();
+const fbDb   = firebase.firestore();
+
+async function fsLoadState(uid) {
+  try {
+    const doc = await fbDb.collection('users').doc(uid).get();
+    if (doc.exists) {
+      const d = doc.data().state;
+      if (d) { if (!d.quizResults) d.quizResults = []; return d; }
+    }
+  } catch(e) { console.warn('Firestore load:', e); }
+  return null;
+}
+
+function fsSaveState(uid, s) {
+  fbDb.collection('users').doc(uid).set({ state: s }, { merge: true })
+    .catch(e => console.warn('Firestore save:', e));
+}
+
+// ===== Question Bank (from fp3-siken.com past exams) =====
+const QUESTION_BANK = [
+  // --- ライフプランニングと資金計画 ---
+  {
+    id:'L1', subjectId:'life', type:'ox',
+    question:'ファイナンシャル・プランナーは、職業倫理上、顧客情報に関する守秘義務を厳守しなければならない。',
+    answer: true,
+    explanation:'FPには高い職業倫理と法令順守が求められます。業務上知得した顧客情報は、顧客の同意なしに他に知らせてはなりません。',
+    source:'2024年5月 問1',
+  },
+  {
+    id:'L2', subjectId:'life', type:'choice',
+    question:'住宅金融支援機構と民間金融機関が提携した住宅ローンであるフラット35（買取型）の融資金利は（①）であり、借入れをする際には、保証人が（②）である。',
+    choices:['① 固定金利　② 不要','① 固定金利　② 必要','① 変動金利　② 必要'],
+    answer: 0,
+    explanation:'フラット35は全期間固定金利の住宅ローン商品です。保証人や保証会社との契約も不要です。',
+    source:'過去問',
+  },
+  {
+    id:'L3', subjectId:'life', type:'ox',
+    question:'雇用保険の高年齢雇用継続基本給付金は、原則として、60歳以上65歳未満の被保険者が、60歳到達時点に比べて賃金月額が85％未満に低下した状態で就労している場合に支給される。',
+    answer: false,
+    explanation:'正しくは「75％未満」に低下した場合です。85%ではありません。賃金の最大10%を上限として支給され、被保険者期間が5年以上必要です。',
+    source:'過去問',
+  },
+  {
+    id:'L4', subjectId:'life', type:'ox',
+    question:'国民年金の第1号被保険者の収入により生計を維持している配偶者で、20歳以上60歳未満の者は、国民年金の第3号被保険者となる。',
+    answer: false,
+    explanation:'第3号被保険者となるには、第2号被保険者（会社員・公務員）に扶養されている必要があります。第1号被保険者（自営業者等）に扶養されている配偶者は第1号被保険者です。',
+    source:'過去問',
+  },
+  {
+    id:'L5', subjectId:'life', type:'choice',
+    question:'65歳到達時に老齢基礎年金の受給資格期間を満たしている者が、70歳0カ月で老齢基礎年金の繰下げ支給の申出をした場合、老齢基礎年金の増額率は（　）となる。',
+    choices:['30％','36％','42％'],
+    answer: 2,
+    explanation:'繰下げの増額率は「繰り下げた月数×0.7％」で計算します。65歳→70歳は60カ月なので、60×0.7%＝42%の増額となります。',
+    source:'2025年5月 問33',
+  },
+  // --- リスク管理 ---
+  {
+    id:'R1', subjectId:'risk', type:'ox',
+    question:'企業のリスク対策の手法であるリスクコントロールとは、損失を補てんするために金銭的な手当てをする方法である。',
+    answer: false,
+    explanation:'損失に対して金銭を準備する方法は「リスクファイナンス」です。リスクコントロールは、リスクの発生確率や損害を抑える対策（回避・軽減等）を指します。',
+    source:'2018年5月 問10',
+  },
+  {
+    id:'R2', subjectId:'risk', type:'choice',
+    question:'国内で事業を行う損害保険会社が破綻した場合、自動車損害賠償責任保険（自賠責保険）について、損害保険契約者保護機構による補償割合は（　）である。',
+    choices:['80％','90％','100％'],
+    answer: 2,
+    explanation:'自賠責保険は、破綻からの経過期間にかかわらず100%の補償が適用されます。',
+    source:'2025年5月 問36',
+  },
+  {
+    id:'R3', subjectId:'risk', type:'ox',
+    question:'国内旅行傷害保険では、一般に、被保険者が国内旅行中にかかった細菌性食中毒は、補償の対象となる。',
+    answer: true,
+    explanation:'国内旅行傷害保険では、旅行中の食事による食中毒は特約なしで補償対象となります。ただし、病気・日射病・熱中症は補償対象外です。',
+    source:'2025年5月 問9',
+  },
+  {
+    id:'R4', subjectId:'risk', type:'choice',
+    question:'先進医療特約では、（　）時点において厚生労働大臣により定められている先進医療が先進医療給付金の対象となる。',
+    choices:['申込日','責任開始日','療養を受けた日'],
+    answer: 2,
+    explanation:'先進医療特約では、「療養を受けた日」時点で厚生労働大臣の定めた先進医療である場合に支払い対象となります。',
+    source:'過去問',
+  },
+  {
+    id:'R5', subjectId:'risk', type:'ox',
+    question:'定期保険特約付終身保険（更新型）は、定期保険特約の更新の都度、告知が必要であり、被保険者の健康状態によっては定期保険特約を更新することができない。',
+    answer: false,
+    explanation:'更新型の定期保険特約は、更新時に医者の診査や告知は不要で、自動更新されます。ただし、更新時は年齢に応じて保険料が再計算され、更新前より高くなります。',
+    source:'2025年5月 問7',
+  },
+  {
+    id:'R6', subjectId:'risk', type:'choice',
+    question:'国内で事業を行う生命保険会社が破綻した場合、生命保険契約者保護機構による補償の対象となる保険契約については、高予定利率契約を除き、破綻時の（　）の90％まで補償される。',
+    choices:['解約返戻金相当額','責任準備金等','既払込保険料相当額'],
+    answer: 1,
+    explanation:'生命保険契約者保護機構の補償限度は「責任準備金等の90％」と定められています。',
+    source:'2024年5月 問36',
+  },
+  {
+    id:'R7', subjectId:'risk', type:'ox',
+    question:'少額短期保険業者と契約した少額短期保険の保険料は、所得税の生命保険料控除の対象とならない。',
+    answer: true,
+    explanation:'少額短期保険業者は保険業法に定める生命保険会社に該当しないため、その保険料は生命保険料控除の対象外です。',
+    source:'2024年1月 問8',
+  },
+  {
+    id:'R8', subjectId:'risk', type:'choice',
+    question:'国内で事業を行う生命保険会社が破綻した場合、生命保険契約者保護機構による補償の対象となる保険契約については、高予定利率契約を除き、（①）の（②）まで補償される。',
+    choices:['① 既払込保険料相当額 ② 70％','① 死亡保険金額 ② 80％','① 責任準備金等 ② 90％'],
+    answer: 2,
+    explanation:'生命保険契約者保護機構の補償限度は「責任準備金等の90％」です。',
+    source:'2024年1月 問37',
+  },
+  {
+    id:'R9', subjectId:'risk', type:'ox',
+    question:'国内で事業を行う生命保険会社が破綻した場合、生命保険契約者保護機構による補償の対象となる保険契約については、高予定利率契約を除き、既払込保険料相当額の90％まで補償される。',
+    answer: false,
+    explanation:'補償限度は「既払込保険料相当額」ではなく「責任準備金等」の90％です。',
+    source:'2023年9月 問6',
+  },
+  {
+    id:'R10', subjectId:'risk', type:'choice',
+    question:'国内で事業を行う生命保険会社が破綻した場合、生命保険契約者保護機構による補償の対象となる保険契約については、高予定利率契約を除き、（①）の（②）まで補償される。',
+    choices:['① 既払込保険料相当額 ② 70％','① 死亡保険金額 ② 80％','① 責任準備金等 ② 90％'],
+    answer: 2,
+    explanation:'生命保険契約者保護機構の補償限度は「責任準備金等の90％」と定められています。',
+    source:'2022年9月 問36',
+  },
+  {
+    id:'R11', subjectId:'risk', type:'ox',
+    question:'保険業法上の保険募集において、保険募集人が保険契約の締結の媒介を行う場合、保険募集人が保険契約の申込みに対して承諾した時点で当該保険契約は有効に成立する。',
+    answer: false,
+    explanation:'媒介では募集人に契約締結権がなく、契約成立は保険会社が申込みを承諾した時点です。',
+    source:'2021年5月 問6',
+  },
+  {
+    id:'R12', subjectId:'risk', type:'choice',
+    question:'ソルベンシー・マージン比率は、保険会社が、通常の予測を超えて発生するリスクに対し、保険金等の支払余力をどの程度有するかを示す指標であり、この値が（　）を下回ると、監督当局による早期是正措置の対象となる。',
+    choices:['200％','250％','300％'],
+    answer: 0,
+    explanation:'ソルベンシー・マージン比率が200％を下回ると金融庁による早期是正措置の対象となります。',
+    source:'2021年5月 問36',
+  },
+  {
+    id:'R13', subjectId:'risk', type:'ox',
+    question:'個人年金保険（終身年金）の保険料は、他の契約条件が同一であれば、被保険者が女性のほうが男性よりも高くなる。',
+    answer: true,
+    explanation:'終身年金は生存中年金が支払われるため、平均余命の長い女性の方が保険料は高くなります。',
+    source:'2025年5月 問8',
+  },
+  {
+    id:'R14', subjectId:'risk', type:'choice',
+    question:'生命保険会社が（　）を引き下げた場合、通常、その後の終身保険の新規契約の保険料は高くなる。',
+    choices:['予定利率','予定死亡率','予定事業費率'],
+    answer: 0,
+    explanation:'予定利率を引き下げると運用益が減るため、保険料は高くなります。予定死亡率・予定事業費率の引下げは保険料を安くします。',
+    source:'2025年5月 問37',
+  },
+  {
+    id:'R15', subjectId:'risk', type:'choice',
+    question:'個人年金保険（保証期間付終身年金）において、契約者（＝保険料負担者）、被保険者および年金受取人がAさんの父親である場合、保証期間内にAさんの父親が死亡し、残りの保証期間についてAさんが受け取る年金の年金受給権は、（　）の課税対象となる。',
+    choices:['贈与税','相続税','所得税'],
+    answer: 1,
+    explanation:'保証期間内に被保険者が死亡した場合、残りの年金受給権は相続財産となり相続税の課税対象です。',
+    source:'2025年5月 問40',
+  },
+  {
+    id:'R16', subjectId:'risk', type:'ox',
+    question:'払済保険とは、一般に、現在契約している生命保険の保険料の払込みを中止し、その時点での解約返戻金相当額を基に、元の契約の保険金額を変えずに一時払いの定期保険に変更する制度である。',
+    answer: false,
+    explanation:'問題文は延長保険の説明です。払済保険は保険期間は変わらず保険金額を減額する制度です。',
+    source:'2024年5月 問6',
+  },
+  {
+    id:'R17', subjectId:'risk', type:'ox',
+    question:'定期保険は、被保険者が保険期間満了まで生存した場合、死亡保険金と同額の満期保険金が支払われる保険である。',
+    answer: false,
+    explanation:'定期保険には満期保険金はありません。満期保険金が支払われるのは養老保険です。',
+    source:'2024年5月 問7',
+  },
+  {
+    id:'R18', subjectId:'risk', type:'ox',
+    question:'変額個人年金保険では、特別勘定の運用実績に基づいて、将来受け取る年金額が変動する。',
+    answer: true,
+    explanation:'変額保険は特別勘定で運用され、運用実績により年金額や解約返戻金が変動します。',
+    source:'2024年5月 問8',
+  },
+  {
+    id:'R19', subjectId:'risk', type:'choice',
+    question:'生命保険の保険料は、（①）および収支相等の原則に基づき、予定死亡率、（②）、予定事業費率の3つの予定基礎率を用いて計算される。',
+    choices:['① 大数の法則 ② 予定利率','① 適合性の原則 ② 予定利率','① 大数の法則 ② 予定損害率'],
+    answer: 0,
+    explanation:'生命保険料は「大数の法則」と「収支相等の原則」に基づき、予定死亡率・予定利率・予定事業費率で計算されます。',
+    source:'2024年5月 問37',
+  },
+  {
+    id:'R20', subjectId:'risk', type:'choice',
+    question:'生命保険契約において、契約者（＝保険料負担者）および死亡保険金受取人がAさん、被保険者がAさんの父親である場合、Aさんの父親の死亡によりAさんが受け取る死亡保険金は、（　）の課税対象となる。',
+    choices:['贈与税','相続税','所得税'],
+    answer: 2,
+    explanation:'契約者と受取人が同一人物の場合、受け取る死亡保険金は所得税の課税対象となります。',
+    source:'2024年5月 問40',
+  },
+  {
+    id:'R21', subjectId:'risk', type:'ox',
+    question:'個人年金保険（終身年金）の保険料は、性別以外の契約条件が同一であれば、被保険者が女性のほうが男性よりも高くなる。',
+    answer: true,
+    explanation:'女性は平均余命が長く、保険会社の年金支払総額が増えるため、女性の方が保険料は高くなります。',
+    source:'2024年1月 問7',
+  },
+  {
+    id:'R22', subjectId:'risk', type:'choice',
+    question:'生命保険の保険料は、純保険料および付加保険料で構成されており、このうち付加保険料は、（　）に基づいて計算される。',
+    choices:['予定利率','予定死亡率','予定事業費率'],
+    answer: 2,
+    explanation:'付加保険料は保険会社の経費に充てられ、予定事業費率に基づいて計算されます。純保険料は予定死亡率と予定利率で算定されます。',
+    source:'2024年1月 問36',
+  },
+  {
+    id:'R23', subjectId:'risk', type:'ox',
+    question:'自動車保険の人身傷害保険では、記名被保険者が被保険自動車を運転中に自動車同士の衝突事故により負傷した場合、自己の過失割合にかかわらず、保険金額を限度として損害額が補償される。',
+    answer: true,
+    explanation:'人身傷害保険は過失割合に関係なく、実際の損害額が保険金額を限度に補償されます。',
+    source:'2025年5月 問10',
+  },
+  {
+    id:'R24', subjectId:'risk', type:'choice',
+    question:'自動車損害賠償責任保険（自賠責保険）の保険金支払限度額について、加害車両1台の場合、被害者1人につき、死亡による損害については（①）、傷害による損害については（②）、後遺障害による損害については障害の程度に応じて75万円から4,000万円である。',
+    choices:['① 3,000万円 ② 120万円','① 4,000万円 ② 150万円','① 5,000万円 ② 200万円'],
+    answer: 0,
+    explanation:'自賠責保険の支払限度額は死亡3,000万円、傷害120万円です。',
+    source:'2025年5月 問38',
+  },
+  {
+    id:'R25', subjectId:'risk', type:'ox',
+    question:'普通傷害保険の保険料は、被保険者の性別や加入時の年齢によって異なる。',
+    answer: false,
+    explanation:'普通傷害保険の保険料は職業や職種で決まります。年齢・性別は関係ありません。',
+    source:'2024年5月 問9',
+  },
+  {
+    id:'R26', subjectId:'risk', type:'ox',
+    question:'自動車保険の対人賠償保険では、被保険者が被保険自動車を運転中に誤って起こした事故により他人を死傷させ、法律上の損害賠償責任を負った場合、自動車損害賠償責任保険（自賠責保険）から支払われる限度額を超える損害賠償額に対して保険金が支払われる。',
+    answer: true,
+    explanation:'対人賠償保険は自賠責保険の限度額を超える部分について保険金が支払われます。',
+    source:'2024年5月 問10',
+  },
+  {
+    id:'R27', subjectId:'risk', type:'choice',
+    question:'地震保険の保険金額は、火災保険の保険金額の30％から50％までの範囲内で設定するが、居住用建物については（①）、生活用動産（家財）については（②）が上限となる。',
+    choices:['① 1,000万円 ② 200万円','① 3,000万円 ② 500万円','① 5,000万円 ② 1,000万円'],
+    answer: 2,
+    explanation:'地震保険の上限は居住用建物5,000万円、家財1,000万円です。',
+    source:'2024年5月 問38',
+  },
+  {
+    id:'R28', subjectId:'risk', type:'ox',
+    question:'家族傷害保険（家族型）において、保険期間中に契約者（＝被保険者本人）に子が生まれた場合、その子を被保険者に加えるためには追加保険料を支払う必要がある。',
+    answer: false,
+    explanation:'家族傷害保険では被保険者の範囲は事故発生時の関係で判定され、保険期間中に生まれた子は自動的に被保険者となります。',
+    source:'2024年1月 問9',
+  },
+  {
+    id:'R29', subjectId:'risk', type:'ox',
+    question:'自動車損害賠償責任保険（自賠責保険）では、他人の自動車や建物などの財物を損壊し、法律上の損害賠償責任を負担することによって被る損害は補償の対象とならない。',
+    answer: true,
+    explanation:'自賠責保険は対人賠償のみが対象で、対物賠償は補償対象外です。',
+    source:'2024年1月 問10',
+  },
+  {
+    id:'R30', subjectId:'risk', type:'choice',
+    question:'自動車を運転中にハンドル操作を誤ってガードレールに衝突し、被保険者である運転者がケガをした場合、（　）による補償の対象となる。',
+    choices:['対人賠償保険','人身傷害保険','自動車損害賠償責任保険'],
+    answer: 1,
+    explanation:'自損事故での運転者のケガは人身傷害保険で補償されます。対人賠償保険や自賠責保険は被害者救済が目的です。',
+    source:'2024年1月 問38',
+  },
+  {
+    id:'R31', subjectId:'risk', type:'choice',
+    question:'所得税において、個人が支払う地震保険の保険料に係る地震保険料控除は、原則として、（①）を限度として年間支払保険料の（②）が控除額となる。',
+    choices:['① 5万円 ② 全額','① 5万円 ② 2分の1相当額','① 10万円 ② 2分の1相当額'],
+    answer: 0,
+    explanation:'所得税の地震保険料控除は5万円を限度に年間支払保険料の全額が控除されます。',
+    source:'2024年1月 問39',
+  },
+  {
+    id:'R32', subjectId:'risk', type:'ox',
+    question:'自動車保険の車両保険では、一般に、被保険自動車が洪水により水没したことによって被る損害は、補償の対象となる。',
+    answer: true,
+    explanation:'車両保険では台風・洪水・高潮などの水害による損害はどのタイプでも補償対象です。',
+    source:'2023年9月 問9',
+  },
+  {
+    id:'R33', subjectId:'risk', type:'ox',
+    question:'地震保険では、保険の対象である居住用建物または生活用動産（家財）の損害の程度が「全損」「大半損」「小半損」「一部損」のいずれかに該当した場合に、保険金が支払われる。',
+    answer: true,
+    explanation:'地震保険は全損・大半損・小半損・一部損の4つの損害区分に基づいて保険金が支払われます。',
+    source:'2023年9月 問10',
+  },
+  {
+    id:'R34', subjectId:'risk', type:'choice',
+    question:'先進医療特約では、（　）時点において厚生労働大臣により定められている先進医療が先進医療給付金の対象となる。',
+    choices:['申込日','責任開始日','療養を受けた日'],
+    answer: 2,
+    explanation:'先進医療特約の給付対象は「療養を受けた日」時点で厚生労働大臣が定めた先進医療に該当する場合です。',
+    source:'2025年5月 問39',
+  },
+  {
+    id:'R35', subjectId:'risk', type:'choice',
+    question:'がん保険では、一般に、（　）程度の免責期間が設けられており、この期間中にがんと診断確定されたとしても、がん診断給付金は支払われない。',
+    choices:['30日間','60日間','90日間'],
+    answer: 2,
+    explanation:'がん保険は一般的に契約から90日間の免責期間があり、この間に診断されても保障対象外です。',
+    source:'2024年5月 問39',
+  },
+  {
+    id:'R36', subjectId:'risk', type:'ox',
+    question:'こども保険（学資保険）において、保険期間中に契約者（＝保険料負担者）である親が死亡した場合、一般に、既払込保険料相当額の死亡保険金が支払われて保険契約は消滅する。',
+    answer: false,
+    explanation:'契約者である親が死亡した場合、保険料払込みが免除され契約は継続します。死亡保険金は支払われません。',
+    source:'2024年1月 問6',
+  },
+  {
+    id:'R37', subjectId:'risk', type:'choice',
+    question:'がん保険において、がんの治療を目的とする入院により被保険者が受け取る入院給付金は、一般に、1回の入院での支払日数（　）。',
+    choices:['に制限はない','は90日が限度となる','は180日が限度となる'],
+    answer: 0,
+    explanation:'がん保険の入院給付金には支払日数の制限がありません。通常の医療保険とは異なります。',
+    source:'2024年1月 問40',
+  },
+  {
+    id:'R38', subjectId:'risk', type:'choice',
+    question:'医療保険等に付加される先進医療特約では、（　）時点において厚生労働大臣により定められている先進医療が給付の対象となる。',
+    choices:['申込日','責任開始日','療養を受けた日'],
+    answer: 2,
+    explanation:'先進医療特約は「療養を受けた日」時点で厚生労働大臣が指定している先進医療が給付対象です。',
+    source:'2023年9月 問40',
+  },
+  {
+    id:'R39', subjectId:'risk', type:'choice',
+    question:'スーパーマーケットを経営する企業が、火災により店舗が全焼し、休業した場合の利益損失を補償する保険として、（　）がある。',
+    choices:['請負業者賠償責任保険','企業費用・利益総合保険','施設所有（管理）者賠償責任保険'],
+    answer: 1,
+    explanation:'火災等で営業できなくなった際の利益損失を補償するのは企業費用・利益総合保険です。',
+    source:'2023年9月 問39',
+  },
+  {
+    id:'R40', subjectId:'risk', type:'ox',
+    question:'スーパーマーケットを経営する企業が、店舗内に積み上げられた商品が倒れ、顧客の頭にぶつかってケガをさせ、法律上の損害賠償責任を負うことによって被る損害は、施設所有（管理）者賠償責任保険の補償対象となる。',
+    answer: true,
+    explanation:'施設管理の不備に起因する事故による損害賠償は施設所有（管理）者賠償責任保険の補償対象です。',
+    source:'2022年9月 問9',
+  },
+  {
+    id:'R41', subjectId:'risk', type:'choice',
+    question:'スーパーマーケットが店舗内で調理・販売した食品が原因で食中毒を発生させ、顧客に損害賠償責任を負う場合に備える保険として適切なものはどれか。',
+    choices:['生産物賠償責任保険（PL保険）','請負業者賠償責任保険','施設所有（管理）者賠償責任保険'],
+    answer: 0,
+    explanation:'調理・販売した食品（生産物）が原因の損害賠償は生産物賠償責任保険（PL保険）で補償されます。',
+    source:'2022年5月 問38',
+  },
+  // --- 金融資産運用 ---
+  {
+    id:'F1', subjectId:'finance', type:'ox',
+    question:'米国の市場金利が上昇し、日本と米国の金利差が拡大することは、一般に、米ドル高／円安の要因となる。',
+    answer: true,
+    explanation:'ある国の金利が上昇すると、より高い金利を求めてその国の通貨が買われます。米国金利の上昇は米ドル高・円安の要因です。',
+    source:'2025年5月 問11',
+  },
+  {
+    id:'F2', subjectId:'finance', type:'ox',
+    question:'元金2,500,000円を、年利4％（1年複利）で3年間運用した場合の元利合計額は、2,812,160円である。',
+    answer: true,
+    explanation:'複利計算: 2,500,000×1.04³ = 2,500,000×1.124864 = 2,812,160円。記述は正確です。',
+    source:'2024年1月 問13',
+  },
+  {
+    id:'F3', subjectId:'finance', type:'ox',
+    question:'公社債投資信託は、信託財産に株式をいっさい組み入れることができない。',
+    answer: true,
+    explanation:'公社債投資信託は国債・地方債・社債などの債券や短期金融商品のみで運用し、株式を組み入れることはできません。株式を組み入れられるのは株式投資信託です。',
+    source:'2025年5月 問12',
+  },
+  {
+    id:'F4', subjectId:'finance', type:'ox',
+    question:'一般に、市場金利が上昇すると債券価格は上昇し、市場金利が低下すると債券価格は下落する。',
+    answer: false,
+    explanation:'市場金利と債券価格は逆の関係です。市場金利が上昇すると債券価格は下落し、市場金利が低下すると債券価格は上昇します。',
+    source:'2025年5月 問13',
+  },
+  {
+    id:'F5', subjectId:'finance', type:'ox',
+    question:'国内の証券取引所に上場している内国株式を普通取引により売買する場合、指値注文は成行注文に優先して売買が成立する。',
+    answer: false,
+    explanation:'成行注文は指値注文よりも優先されます（成行優先の原則）。他に価格優先の原則、時間優先の原則があります。',
+    source:'2025年5月 問14',
+  },
+  // --- タックスプランニング ---
+  {
+    id:'T1', subjectId:'tax', type:'ox',
+    question:'所得税や住民税は国税であり、固定資産税や登録免許税は地方税である。',
+    answer: false,
+    explanation:'住民税は地方税、登録免許税は国税です。正しくは国税＝所得税・登録免許税、地方税＝住民税・固定資産税。',
+    source:'2024年5月 問16',
+  },
+  {
+    id:'T2', subjectId:'tax', type:'ox',
+    question:'所得税において、病気で入院したことにより医療保険の被保険者が受け取った入院給付金は、非課税である。',
+    answer: true,
+    explanation:'身体の傷害に基因して受け取る入院給付金・通院給付金・手術給付金・高度障害保険金等は所得税法上の非課税所得です。',
+    source:'2025年5月 問16',
+  },
+  {
+    id:'T3', subjectId:'tax', type:'ox',
+    question:'所得税において、その年中の給与等の収入金額が103万円以下である場合、給与所得の金額は0（ゼロ）となる。',
+    answer: false,
+    explanation:'給与所得控除の最低額は55万円（2020年以降）のため、103万円-55万円=48万円の給与所得が発生します。所得は0にはなりません。',
+    source:'2025年5月 問17',
+  },
+  {
+    id:'T4', subjectId:'tax', type:'ox',
+    question:'所得税において、賃貸アパートの土地および建物を譲渡したことによる譲渡所得の金額の計算上生じた損失の金額は、他の所得金額と損益通算することができない。',
+    answer: true,
+    explanation:'土地・建物の譲渡所得は分離課税のため、その損失を他の所得と損益通算することはできません。損益通算できるのは不動産・事業・山林・譲渡（土地建物等除く）の4つです。',
+    source:'2025年5月 問19',
+  },
+  {
+    id:'T5', subjectId:'tax', type:'ox',
+    question:'契約転換制度を利用して、現在契約している生命保険を新たな契約に転換する場合、転換後契約の保険料は、転換前契約の加入時の年齢に応じた保険料率により算出される。',
+    answer: false,
+    explanation:'転換後契約の保険料は「転換時の年齢と保険料率」で算出されます。転換前の加入時年齢ではなく、転換手続き時点での年齢が適用されます。',
+    source:'2025年5月 問6',
+  },
+  // --- 不動産 ---
+  {
+    id:'E1', subjectId:'realestate', type:'ox',
+    question:'不動産の登記記録において、所有権に関する登記事項は、権利部の甲区に記録される。',
+    answer: true,
+    explanation:'登記記録の権利部は甲区と乙区に分かれ、甲区には所有権に関する事項、乙区には所有権以外の権利（抵当権等）が記録されます。',
+    source:'2025年5月 問21',
+  },
+  {
+    id:'E2', subjectId:'realestate', type:'ox',
+    question:'借地借家法によれば、定期借地権の設定を目的とする契約は、定期借地権の種類にかかわらず、公正証書によってしなければならない。',
+    answer: false,
+    explanation:'公正証書が必須なのは「事業用定期借地権等」のみです。一般定期借地権は書面で足り、建物譲渡特約付借地権は契約方法の制限がありません。',
+    source:'2025年5月 問22',
+  },
+  {
+    id:'E3', subjectId:'realestate', type:'ox',
+    question:'都市計画法によれば、市街化区域内において行う開発行為は、その規模にかかわらず、都道府県知事等の許可を受けなければならない。',
+    answer: false,
+    explanation:'市街化区域内では1,000㎡以上の開発行為で許可が必要です。1,000㎡未満は許可不要。市街化調整区域は規模問わず許可必要です。',
+    source:'2025年5月 問23',
+  },
+  {
+    id:'E4', subjectId:'realestate', type:'ox',
+    question:'土地や建物を取得し、所有権の移転登記を行う際に課される税金は、登録免許税である。',
+    answer: true,
+    explanation:'登録免許税は不動産の登記など法律上の権利を公的に登録する手続きの際に国に納める税金です。なお、表題登記には課されません。',
+    source:'2025年5月 問24',
+  },
+  {
+    id:'E5', subjectId:'realestate', type:'choice',
+    question:'Aさんの可処分所得（年間）の金額は、下記の資料（年収800万円、所得税・住民税60万円、社会保険料100万円、生命保険料40万円）によれば、（　）である。',
+    choices:['450万円','630万円','640万円'],
+    answer: 2,
+    explanation:'可処分所得＝年収−（所得税・住民税＋社会保険料）です。生命保険料は含みません。800万−(60万+100万)＝640万円。',
+    source:'過去問',
+  },
+  // --- 相続・事業承継 ---
+  {
+    id:'S1', subjectId:'inheritance', type:'ox',
+    question:'公正証書遺言の作成においては、証人2人以上の立会いが必要であるが、遺言者の推定相続人はその証人となることができない。',
+    answer: true,
+    explanation:'公正証書遺言には証人2人以上の立会いが必須です。推定相続人・受遺者とこれらの配偶者・直系血族は証人になれません。',
+    source:'2025年5月 問27',
+  },
+  {
+    id:'S2', subjectId:'inheritance', type:'ox',
+    question:'相続税額の計算上、死亡保険金の非課税金額の規定による非課税限度額は、「1,000万円×法定相続人の数」の算式により計算する。',
+    answer: false,
+    explanation:'正しくは「500万円×法定相続人の数」です。死亡退職金も同様の非課税枠があります。法定相続人には相続放棄した者も含みます。',
+    source:'2025年5月 問28',
+  },
+  {
+    id:'S3', subjectId:'inheritance', type:'ox',
+    question:'定期贈与とは、贈与者が受贈者に対して定期的に財産を給付することを目的とする贈与をいい、贈与者または受贈者のいずれか一方が生存している限り、その効力を失うことはない。',
+    answer: false,
+    explanation:'定期贈与は、贈与者または受贈者の死亡によりその効力を失います。当事者間の人間関係を基礎としているため、一方の死亡で権利義務は消滅します。',
+    source:'2024年1月 問26',
+  },
+  {
+    id:'S4', subjectId:'inheritance', type:'ox',
+    question:'「直系尊属から教育資金の一括贈与を受けた場合の贈与税の非課税」による非課税限度額は、受贈者ごとに2,000万円である。',
+    answer: false,
+    explanation:'正しい非課税限度額は受贈者1人につき1,500万円です。うち学校等以外に支払われる金銭の非課税限度額は500万円です。',
+    source:'2025年5月 問26',
+  },
+  {
+    id:'S5', subjectId:'inheritance', type:'choice',
+    question:'同族株主のいる会社において、同族株主以外の株主等が取得した取引相場のない株式の相続税評価額は、原則として、特例的評価方式である（　）により評価する。',
+    choices:['配当還元方式','類似業種比準方式','純資産価額方式'],
+    answer: 0,
+    explanation:'同族株主以外の株主等が取得した株式は配当還元方式（特例的評価方式）で評価します。過去2年間の配当平均額を10%の利率で還元して評価します。',
+    source:'2025年5月 問58',
+  },
+  // --- Additional questions from fp3-siken.com ---
+{id:'L6', subjectId:'life', type:'ox', question:'税理士の登録を受けていないファイナンシャル・プランナーが、顧客のために反復継続して確定申告書を作成しても、その行為が無償であれば税理士法に抵触しない。', answer:false, explanation:'税理士法は有償・無償を問わず、税理士でない者が税理士業務を行うことを禁止している。', source:'2025年5月試験 問1'},
+  {id:'L7', subjectId:'life', type:'ox', question:'弁護士の登録を受けていないファイナンシャル・プランナーが、資産管理の相談に来た顧客の求めに応じ、有償で、当該顧客を委任者とする任意後見契約の受任者となることは、弁護士法に抵触する。', answer:false, explanation:'任意後見契約の受任者になるのに特別な資格は不要であり、弁護士法に抵触しない。', source:'2024年1月試験 問1'},
+  {id:'L8', subjectId:'life', type:'ox', question:'ファイナンシャル・プランナーが顧客と投資顧問契約を締結し、当該契約に基づき金融商品取引法で定める投資助言・代理業を行うためには、内閣総理大臣の登録を受けなければならない。', answer:true, explanation:'投資助言・代理業は金融商品取引業に該当し、内閣総理大臣の登録が必要。', source:'2023年9月試験 問1'},
+  {id:'L9', subjectId:'life', type:'ox', question:'弁護士の資格を有しないファイナンシャル・プランナーが、顧客に対して、法定後見制度と任意後見制度の違いについて一般的な説明を行う行為は、弁護士法に抵触する。', answer:false, explanation:'一般的・抽象的な法律説明は弁護士法に抵触しない。個別具体的な法律事務のみが禁止される。', source:'2023年5月試験 問1'},
+  {id:'L10', subjectId:'life', type:'ox', question:'生命保険募集人の登録を受けていないファイナンシャル・プランナーが、ライフプランの相談に来た顧客に対し、生命保険商品の一般的な商品性について説明することは、保険業法において禁止されている。', answer:false, explanation:'一般的な商品説明は募集行為に該当せず、登録のない者でも実施可能。', source:'2023年1月試験 問1'},
+  {id:'L11', subjectId:'life', type:'choice', question:'一定の利率で複利運用しながら一定期間経過後に目標とする額を得るために必要な毎年の積立額を試算する際、目標とする額に乗じる係数は、（　）である。', choices:['現価係数','資本回収係数','減債基金係数'], answer:2, explanation:'目標金額から必要な毎年の積立額を逆算する場合は減債基金係数を使用する。', source:'2024年5月試験 問31'},
+  {id:'L12', subjectId:'life', type:'choice', question:'毎年一定金額を積み立てながら、一定の利率で複利運用した場合の一定期間経過後の元利合計額を試算する際、毎年の積立額に乗じる係数は、（　）である。', choices:['資本回収係数','年金終価係数','減債基金係数'], answer:1, explanation:'毎年の積立額からn年後の元利合計額を求めるには年金終価係数を使用する。', source:'2024年1月試験 問31'},
+  {id:'L13', subjectId:'life', type:'choice', question:'Aさんの当年分の可処分所得の金額は、下記の資料によれば、（　）である。\
+＜資料＞給与収入：750万円、所得税・住民税：80万円、社会保険料：100万円、生命保険料：20万円', choices:['385万円','550万円','570万円'], answer:2, explanation:'可処分所得＝年収−税金−社会保険料。750万円−(80万円＋100万円)＝570万円。生命保険料は控除対象外。', source:'2023年9月試験 問31'},
+  {id:'L14', subjectId:'life', type:'choice', question:'一定の利率で複利運用しながら一定期間、毎年一定金額を受け取るために必要な元本を試算する際、毎年受け取る一定金額に乗じる係数は、（　）である。', choices:['減債基金係数','年金現価係数','資本回収係数'], answer:1, explanation:'毎年一定金額を受け取るために必要な元本を求める場合は年金現価係数を使用する。', source:'2023年5月試験 問31'},
+  {id:'L15', subjectId:'life', type:'choice', question:'元金を一定期間、一定の利率で複利運用して目標とする額を得るために、運用開始時点で必要な元金の額を試算する際、目標とする額に乗じる係数は、（　）である。', choices:['現価係数','減債基金係数','資本回収係数'], answer:0, explanation:'目標額から必要な元本を求めるには現価係数を使用する。', source:'2023年1月試験 問31'},
+  {id:'L16', subjectId:'life', type:'choice', question:'一定の利率で複利運用しながら一定期間経過後に目標とする額を得るために必要な毎年の積立額を試算する際、目標とする額に乗じる係数は、（　）である。', choices:['減債基金係数','年金現価係数','資本回収係数'], answer:0, explanation:'目標金額に達するために必要な毎年の積立額を求める場合は減債基金係数を使用する。', source:'2022年9月試験 問31'},
+  {id:'L17', subjectId:'life', type:'choice', question:'毎年一定金額を積み立てながら、一定の利率で複利運用した場合の一定期間経過後の元利合計額を試算する際、毎年の積立額に乗じる係数は、（　）である。', choices:['減債基金係数','資本回収係数','年金終価係数'], answer:2, explanation:'毎年の積立額から一定期間後の元利合計額を求める場合は年金終価係数を使用する。', source:'2022年5月試験 問31'},
+  {id:'L18', subjectId:'life', type:'choice', question:'全国健康保険協会管掌健康保険に任意継続被保険者として加入することができる期間は、任意継続被保険者となった日から最長で（　）である。', choices:['1年','2年','5年'], answer:1, explanation:'健康保険の任意継続被保険者として加入できる期間は最長2年間。', source:'2025年5月試験 問32'},
+  {id:'L19', subjectId:'life', type:'ox', question:'正当な理由がなく自己の都合により退職した者に対する雇用保険の基本手当は、待期期間の満了後4カ月間は支給されない。', answer:false, explanation:'自己都合退職者の給付制限期間は原則として待期期間後1カ月間であり、4カ月間は誤り。', source:'2024年5月試験 問2'},
+  {id:'L20', subjectId:'life', type:'choice', question:'全国健康保険協会管掌健康保険の傷病手当金の支給期間は、同一の傷病に関して、その支給開始日から通算して最長で（　）である。', choices:['1年','1年6カ月','2年'], answer:1, explanation:'傷病手当金の支給期間は支給開始日から通算して最長1年6カ月。', source:'2024年5月試験 問32'},
+  {id:'L21', subjectId:'life', type:'ox', question:'労働者災害補償保険の保険料は、労働者と事業主が折半で負担する。', answer:false, explanation:'労災保険の保険料は事業主が全額負担する。労使折半ではない。', source:'2024年1月試験 問2'},
+  {id:'L22', subjectId:'life', type:'choice', question:'退職により健康保険の被保険者資格を喪失した者で、喪失日の前日までに継続して（①）以上被保険者であった者は、所定の申出により、最長で（②）、健康保険の任意継続被保険者となることができる。', choices:['① 1カ月 ② 2年間','① 2カ月 ② 1年間','① 2カ月 ② 2年間'], answer:2, explanation:'任意継続の要件は2カ月以上の被保険者期間があること。加入期間は最長2年間。', source:'2024年1月試験 問32'},
+  {id:'L23', subjectId:'life', type:'ox', question:'アルバイトやパートタイマーが、労働者災害補償保険の適用を受けるためには、1週間の所定労働時間が20時間を超えていなければならない。', answer:false, explanation:'労災保険は雇用形態や労働時間に関係なくすべての労働者に適用される。20時間の要件は雇用保険の基準。', source:'2023年9月試験 問2'},
+  {id:'L24', subjectId:'life', type:'choice', question:'全国健康保険協会管掌健康保険の被保険者に支給される傷病手当金の額は、原則として、1日につき、傷病手当金の支給を始める日の属する月以前の直近の継続した（①）の各月の標準報酬月額の平均額を30で除した額に、（②）を乗じた額である。', choices:['① 6カ月間 ② 3分の2','① 12カ月間 ② 3分の2','① 12カ月間 ② 4分の3'], answer:1, explanation:'傷病手当金は直近12カ月の標準報酬月額の平均÷30×3分の2で算出される。', source:'2023年9月試験 問32'},
+  {id:'L25', subjectId:'life', type:'choice', question:'雇用保険の基本手当を受給するためには、倒産、解雇、雇止めなどの場合を除き、原則として、離職の日以前（①）に被保険者期間が通算して（②）以上あることなどの要件を満たす必要がある。', choices:['① 1年間 ② 6カ月','① 2年間 ② 6カ月','① 2年間 ② 12カ月'], answer:2, explanation:'基本手当の原則的な受給要件は離職日以前2年間に被保険者期間が通算12カ月以上。', source:'2023年9月試験 問33'},
+  {id:'L26', subjectId:'life', type:'ox', question:'雇用保険の基本手当を受給するためには、倒産、解雇、雇止めなどの場合を除き、原則として、離職の日以前2年間に被保険者期間が通算して12カ月以上あることなどの要件を満たす必要がある。', answer:true, explanation:'基本手当の一般的な受給要件は離職前2年間に被保険者期間12カ月以上で正しい。', source:'2023年5月試験 問2'},
+  {id:'L27', subjectId:'life', type:'choice', question:'遺族厚生年金を受給することができる遺族の範囲は、厚生年金保険の被保険者等の死亡の当時、その者によって生計を維持され、かつ、所定の要件を満たす（　）とされ、そのうち最も優先順位の高い者に遺族厚生年金が支給される。', choices:['配偶者、子、父母','配偶者、子、父母、孫、祖父母','配偶者、子、父母、孫、祖父母、兄弟姉妹'], answer:1, explanation:'遺族厚生年金の受給対象者は配偶者、子、父母、孫、祖父母に限定され、兄弟姉妹は含まれない。', source:'2025年5月試験 問34'},
+  {id:'L28', subjectId:'life', type:'ox', question:'国民年金の第1号被保険者とは、日本国内に住所を有する20歳以上65歳未満の者であって、国民年金の第2号被保険者および第3号被保険者のいずれにも該当しない者をいう。', answer:false, explanation:'第1号被保険者の年齢要件は20歳以上60歳未満であり、65歳未満は誤り。', source:'2024年5月試験 問3'},
+  {id:'L29', subjectId:'life', type:'choice', question:'60歳0カ月で老齢基礎年金の繰上げ支給の請求をし、支給開始を60カ月繰り上げた場合、老齢基礎年金の減額率は（　）となる。', choices:['24％','42％','60％'], answer:0, explanation:'繰上げ減額率＝繰上げ月数×0.4%。60カ月×0.4%＝24%。', source:'2024年5月試験 問33'},
+  {id:'L30', subjectId:'life', type:'choice', question:'遺族基礎年金を受給することができる遺族の範囲は、国民年金の被保険者等の死亡の当時、その者によって生計を維持され、かつ、所定の要件を満たす（　）とされる。', choices:['子のある配偶者、子','子のある妻、子','子のある配偶者、子、父母'], answer:0, explanation:'遺族基礎年金は「子のある配偶者」または「子」に支給される。妻に限定されず、父母は対象外。', source:'2024年5月試験 問34'},
+  {id:'L31', subjectId:'life', type:'ox', question:'国民年金の学生納付特例制度の適用を受けた期間に係る保険料のうち、追納することができる保険料は、追納に係る厚生労働大臣の承認を受けた日の属する月前10年以内の期間に係るものに限られる。', answer:true, explanation:'学生納付特例の追納期限は承認を受けた月から遡る10年以内の期間に限られる。', source:'2024年1月試験 問3'},
+  {id:'L32', subjectId:'life', type:'ox', question:'遺族基礎年金を受給することができる遺族は、国民年金の被保険者等の死亡の当時、その者によって生計を維持され、かつ、所定の要件を満たす「子のある配偶者」または「子」である。', answer:true, explanation:'遺族基礎年金は「子のある配偶者」または「子」に支給される。', source:'2024年1月試験 問4'},
+  {id:'L33', subjectId:'life', type:'choice', question:'厚生年金保険の被保険者期間が（①）以上ある者が、老齢厚生年金の受給権を取得した当時、一定の要件を満たす（②）未満の配偶者を有する場合、当該受給権者が受給する老齢厚生年金に加給年金額が加算される。', choices:['① 10年 ② 65歳','① 20年 ② 65歳','① 20年 ② 70歳'], answer:1, explanation:'加給年金は厚生年金の被保険者期間20年以上の者に65歳未満の配偶者がいる場合に加算される。', source:'2024年1月試験 問33'},
+  {id:'L34', subjectId:'life', type:'ox', question:'国民年金の第1号被保険者は、日本国内に住所を有する20歳以上60歳未満の自営業者や学生などのうち、日本国籍を有する者のみが該当する。', answer:false, explanation:'第1号被保険者に日本国籍の要件はなく、外国籍の者も該当する。', source:'2023年9月試験 問3'},
+  {id:'L35', subjectId:'life', type:'ox', question:'国民年金の第3号被保険者は、確定拠出年金の個人型年金に加入することができる。', answer:true, explanation:'2017年の制度改正により第3号被保険者もiDeCoに加入可能になった。', source:'2025年5月試験 問4'},
+  {id:'L36', subjectId:'life', type:'ox', question:'小規模企業共済の掛金月額は、1,000円から7万円までの範囲内で500円単位で選択することができる。', answer:true, explanation:'小規模企業共済の掛金は月額1,000円から70,000円の範囲内で500円単位で選択可能。', source:'2025年5月試験 問5'},
+  {id:'L37', subjectId:'life', type:'ox', question:'国民年金の第2号被保険者である公務員が確定拠出年金の個人型年金に加入する場合、掛金の拠出限度額は年額14万4,000円である。', answer:false, explanation:'公務員のiDeCo拠出限度額は年額240,000円（月額20,000円）であり、144,000円は誤り。', source:'2024年5月試験 問4'},
+  {id:'L38', subjectId:'life', type:'ox', question:'国民年金基金の給付には、老齢年金と遺族一時金がある。', answer:true, explanation:'国民年金基金の給付は老齢年金と遺族一時金の2種類。障害給付はない。', source:'2024年5月試験 問5'},
+  {id:'L39', subjectId:'life', type:'choice', question:'確定拠出年金の個人型年金の老齢給付金を60歳から受給するためには、通算加入者等期間が（　）以上なければならない。', choices:['10年','15年','20年'], answer:0, explanation:'iDeCoの老齢給付金を60歳から受給するには通算加入者等期間が10年以上必要。', source:'2024年1月試験 問34'},
+  {id:'L40', subjectId:'life', type:'ox', question:'国民年金基金の加入員は、所定の事由により加入員資格を喪失する場合を除き、加入している国民年金基金から自己都合で任意に脱退することはできない。', answer:true, explanation:'国民年金基金は一度加入すると任意脱退は不可。脱退は所定事由に限定される。', source:'2023年9月試験 問4'},
+  {id:'L41', subjectId:'life', type:'choice', question:'住宅ローンの元利均等返済方式と元金均等返済方式を比較した場合、借入額、金利、借入期間等の条件が同一であれば、通常、総返済額は（　）。', choices:['元利均等返済方式のほうが多くなる','元金均等返済方式のほうが多くなる','同じである'], answer:0, explanation:'元利均等返済は元金の減りが遅いため利息負担が大きく、同条件では総返済額が多くなる。', source:'2024年5月試験 問35'},
+  {id:'L42', subjectId:'life', type:'ox', question:'日本学生支援機構の奨学金と日本政策金融公庫の教育一般貸付（国の教育ローン）は、重複して利用することができる。', answer:true, explanation:'両制度は要件を満たせば重複利用可能。奨学金は学生本人名義、教育一般貸付は親名義。', source:'2024年1月試験 問5'},
+  {id:'L43', subjectId:'life', type:'choice', question:'住宅ローンの返済方式のうち、毎月の返済額が一定で、返済が進むにつれて元金部分が増加する方式の図において、①返済方式、②P部分、③Q部分はそれぞれ何か。', choices:['① 元金均等 ② 利息 ③ 元金','① 元利均等 ② 元金 ③ 利息','① 元利均等 ② 利息 ③ 元金'], answer:0, explanation:'元金均等返済方式では毎月の元金返済額が一定で、利息部分が徐々に減少する。', source:'2024年1月試験 問35'},
+  {id:'L44', subjectId:'life', type:'ox', question:'住宅ローンの一部繰上げ返済では、返済期間を変更せずに毎月の返済額を減額する返済額軽減型よりも、毎月の返済額を変更せずに返済期間を短くする期間短縮型のほうが、他の条件が同一である場合、通常、総返済額は少なくなる。', answer:true, explanation:'期間短縮型は返済額軽減型より支払利息の軽減効果が高く、総返済額が少なくなる。', source:'2023年9月試験 問5'},
+  {id:'L45', subjectId:'life', type:'choice', question:'フラット35（買取型）の融資額は、土地取得費を含めた住宅建設費用または住宅購入価額以内で、最高（①）であり、融資金利は（②）である。', choices:['① 8,000万円 ② 固定金利','① 1億円 ② 固定金利','① 1億円 ② 変動金利'], answer:0, explanation:'フラット35の融資限度額は8,000万円以下、金利は固定金利。', source:'2023年9月試験 問35'},
+  {id:'L46', subjectId:'life', type:'ox', question:'日本政策金融公庫の教育一般貸付（国の教育ローン）の使途は入学金や授業料などの学校納付金に限られ、受験費用や在学のための住居費用などに利用することはできない。', answer:false, explanation:'教育一般貸付は学校納付金だけでなく、受験費用や住居費用等にも利用可能。', source:'2023年5月試験 問5'},
+  {id:'L47', subjectId:'life', type:'choice', question:'住宅金融支援機構と民間金融機関が提携した住宅ローンであるフラット35（買取型）の融資金利は（①）であり、（②）時点の金利が適用される。', choices:['① 変動金利 ② 借入申込','① 固定金利 ② 借入申込','① 固定金利 ② 融資実行'], answer:2, explanation:'フラット35は固定金利で、適用金利は申込時ではなく融資実行時の金利。', source:'2023年5月試験 問34'},
+  {id:'L48', subjectId:'life', type:'choice', question:'貸金業法の総量規制により、個人が貸金業者による個人向け貸付を利用する場合の借入合計額は、原則として、年収の（　）以内でなければならない。', choices:['2分の1','3分の1','4分の1'], answer:1, explanation:'貸金業法の総量規制では借入残高が年収の3分の1を超える場合は新規借入不可。', source:'2023年5月試験 問35'},
+  {id:'L49', subjectId:'life', type:'choice', question:'貸金業法の総量規制により、個人が貸金業者による個人向け貸付を利用する場合の借入合計額は、原則として、年収の（　）以内でなければならない。', choices:['2分の1','3分の1','4分の1'], answer:1, explanation:'貸金業法の総量規制では借入残高が年収の3分の1を超える場合は新規借入不可。', source:'2022年9月試験 問35'},
+  {id:'L50', subjectId:'life', type:'choice', question:'貸金業法の総量規制により、個人が貸金業者による個人向け貸付を利用する場合の借入合計額は、原則として、年収の（　）以内でなければならない。', choices:['4分の1','3分の1','2分の1'], answer:1, explanation:'貸金業法の総量規制では借入残高が年収の3分の1を超える場合は新規借入不可。', source:'2020年9月試験 問35'},
+{id:'F6', subjectId:'finance', type:'ox', question:'国内総生産（GDP）は、国内で一定期間内に生産されたモノやサービスの付加価値の合計額を示すものである。', answer:true, explanation:'GDPは一定期間内に国内で生産された財やサービスの付加価値の総額を示す経済指標。', source:'2024年5月 問11'},
+  {id:'F7', subjectId:'finance', type:'ox', question:'日本銀行の金融政策の1つである公開市場操作（オペレーション）のうち、国債買入オペは、日本銀行が長期国債（利付国債）を買い入れることによって金融市場に資金を供給するオペレーションである。', answer:true, explanation:'買いオペは日銀が有価証券を買い入れ市場に資金供給する金融緩和策。', source:'2024年1月 問11'},
+  {id:'F8', subjectId:'finance', type:'choice', question:'景気動向指数において、完全失業率は、（　）に採用されている。', choices:['先行系列','一致系列','遅行系列'], answer:2, explanation:'完全失業率は景気変動に遅れて反応するため遅行系列に分類される。', source:'2024年1月 問41'},
+  {id:'F9', subjectId:'finance', type:'ox', question:'景気動向指数において、コンポジット・インデックス（CI）は、景気拡張の動きの各経済部門への波及度合いを測定することを主な目的とした指標である。', answer:false, explanation:'波及度合いを測定するのはDI。CIは景気変動の大きさやテンポ（量感）を測定する指標。', source:'2023年9月 問11'},
+  {id:'F10', subjectId:'finance', type:'choice', question:'一定期間内に国内で生産された財やサービスの付加価値の合計額から物価変動の影響を取り除いた指標を、（　）という。', choices:['実質GDP','名目GDP','GDPデフレーター'], answer:0, explanation:'物価変動の影響を取り除いたGDPが実質GDP。名目GDPは物価変動を含む。', source:'2023年9月 問41'},
+  {id:'F11', subjectId:'finance', type:'ox', question:'全国企業短期経済観測調査（日銀短観）は、企業間で取引される財に関する価格の変動を測定した統計である。', answer:false, explanation:'日銀短観は企業の景況感をアンケート調査し指数化したもの。問題文は企業物価指数の説明。', source:'2023年5月 問11'},
+  {id:'F12', subjectId:'finance', type:'choice', question:'一般法人、個人、地方公共団体などの通貨保有主体が保有する通貨量の残高を集計したものを（①）といい、（②）が作成・公表している。', choices:['① マネーストック　② 財務省','① マネーストック　② 日本銀行','① GDP　② 日本銀行'], answer:1, explanation:'マネーストックは通貨保有主体の通貨残高を示す指標で、日本銀行が毎月公表。', source:'2023年5月 問41'},
+  {id:'F13', subjectId:'finance', type:'choice', question:'追加型株式投資信託を基準価額11,500円（1万口当たり）で1万口購入した後、最初の決算時に1万口当たり700円の収益分配金が支払われ、分配落ち後の基準価額が11,200円（1万口当たり）となった場合、その収益分配金のうち、普通分配金は（①）であり、元本払戻金（特別分配金）は（②）である。', choices:['① 300円　② 400円','① 400円　② 300円','① 500円　② 200円'], answer:1, explanation:'11,200+700-11,500=400円が普通分配金、残り300円が特別分配金。', source:'2025年5月 問41'},
+  {id:'F14', subjectId:'finance', type:'ox', question:'投資信託を購入する際には、購入時手数料とあわせて、1カ月分の運用管理費用（信託報酬）を支払う必要がある。', answer:false, explanation:'信託報酬は保有期間中に信託財産から日々差し引かれるもので、購入時に支払うものではない。', source:'2024年5月 問12'},
+  {id:'F15', subjectId:'finance', type:'choice', question:'株式投資信託の運用において、企業の売上高や利益の伸び率が市場平均よりも高いなど、企業の成長性に着目して選定した銘柄に投資する手法を、（　）という。', choices:['グロース運用','バリュー運用','トップダウン・アプローチ'], answer:0, explanation:'成長性が高い銘柄に投資する手法がグロース運用。バリュー運用は割安株に着目する手法。', source:'2024年5月 問41'},
+  {id:'F16', subjectId:'finance', type:'ox', question:'株式投資信託の運用において、個別銘柄の投資指標の分析や企業業績などのリサーチによって投資対象とする銘柄を選定し、その積上げによりポートフォリオを構築する手法を、トップダウン・アプローチという。', answer:false, explanation:'問題文はボトムアップ・アプローチの説明。トップダウンはマクロ経済分析から業種・国別比率を決める手法。', source:'2024年1月 問12'},
+  {id:'F17', subjectId:'finance', type:'choice', question:'追加型株式投資信託を基準価額1万200円で1万口購入後、決算時に1万口当たり700円の収益分配金が支払われ、分配落ち後の基準価額が1万円となった場合、普通分配金は（①）であり、元本払戻金（特別分配金）は（②）である。', choices:['① 200円　② 500円','① 500円　② 200円','① 700円　② 200円'], answer:1, explanation:'10,000+700-10,200=500円が普通分配金、残り200円が特別分配金。', source:'2024年1月 問42'},
+  {id:'F18', subjectId:'finance', type:'ox', question:'追加型の国内公募株式投資信託において、収益分配金支払後の基準価額が受益者の個別元本を下回る場合、当該受益者に対する収益分配金は、その全額が普通分配金となる。', answer:false, explanation:'基準価額が個別元本を下回った部分は元本払戻金（特別分配金）となり、全額が普通分配金にはならない。', source:'2023年9月 問12'},
+  {id:'F19', subjectId:'finance', type:'choice', question:'投資信託の運用において、株価が企業の財務状況や利益水準などからみて、割安と評価される銘柄に投資する運用手法を、（　）という。', choices:['グロース運用','バリュー運用','パッシブ運用'], answer:1, explanation:'割安銘柄に投資する手法がバリュー運用。PERやPBR等の指標で割安を判断する。', source:'2023年9月 問42'},
+  {id:'F20', subjectId:'finance', type:'ox', question:'残存期間や表面利率等の他の条件が同一であれば、一般に、格付の高い債券ほど利回りが高く、格付の低い債券ほど利回りが低い。', answer:false, explanation:'格付が高い（リスク低い）債券ほど利回りは低く、格付が低い（リスク高い）債券ほど利回りが高い。', source:'2024年5月 問13'},
+  {id:'F21', subjectId:'finance', type:'choice', question:'表面利率4％、残存期間5年の固定利付債券を額面100円当たり104円で購入した場合の最終利回り（年率・単利）は、（　）である。（答は表示単位の小数点以下第3位を四捨五入）', choices:['3.08％','3.20％','3.33％'], answer:0, explanation:'(4+(100-104)÷5)÷104×100=3.2÷104×100≒3.08％', source:'2024年1月 問43'},
+  {id:'F22', subjectId:'finance', type:'ox', question:'債券の信用格付とは、債券やその発行体の信用評価を記号等で示したものであり、一般に、BBB（トリプルビー）格相当以上の格付が付された債券は、投資適格債とされる。', answer:true, explanation:'BBB格以上が投資適格債、BB格以下が投機的格付（ハイイールド債）に分類される。', source:'2023年9月 問13'},
+  {id:'F23', subjectId:'finance', type:'choice', question:'表面利率3％、残存期間2年の固定利付債券を額面100円当たり105円で購入した場合の最終利回り（年率・単利）は、（　）である。（答は表示単位の小数点以下第3位を四捨五入）', choices:['0.48％','0.50％','0.53％'], answer:0, explanation:'(3+(100-105)÷2)÷105×100=0.5÷105×100≒0.48％', source:'2023年9月 問43'},
+  {id:'F24', subjectId:'finance', type:'ox', question:'一般に、残存期間や表面利率が同一であれば、格付の高い債券ほど利回りが低く、格付の低い債券ほど利回りが高くなる。', answer:true, explanation:'信用度が高い債券はリスクが低いため利回りも低く、信用度が低い債券はリスクプレミアムにより利回りが高い。', source:'2023年5月 問13'},
+  {id:'F25', subjectId:'finance', type:'choice', question:'表面利率2％、残存期間5年の固定利付債券を額面100円当たり104円で購入し、2年後に102円で売却した場合の所有期間利回り（年率・単利）は、（　）である。（税金・手数料は考慮しない、答は表示単位の小数点以下第3位を四捨五入）', choices:['0.96％','1.54％','2.88％'], answer:0, explanation:'(2+(102-104)÷2)÷104×100=1÷104×100≒0.96％', source:'2023年5月 問43'},
+  {id:'F26', subjectId:'finance', type:'ox', question:'債券の信用格付において、B（シングルビー）格相当以上の格付が付された債券は、一般に、投資適格債とされる。', answer:false, explanation:'投資適格債はBBB格相当以上。B格は投機的格付（ハイイールド債）に分類される。', source:'2022年9月 問13'},
+  {id:'F27', subjectId:'finance', type:'choice', question:'X社の株価が1,500円、1株当たり純利益が100円、1株当たり純資産（自己資本）が1,000円である場合、X社のROEは、（　）である。', choices:['1.5％','10％','15％'], answer:1, explanation:'ROE=当期純利益÷自己資本×100=100÷1,000×100=10％', source:'2025年5月 問42'},
+  {id:'F28', subjectId:'finance', type:'ox', question:'国内の証券取引所に上場している内国株式を普通取引により売買する場合、売買成立日の翌営業日に決済が行われる。', answer:false, explanation:'上場株式の普通取引の決済は約定日から起算して3営業日目に行われる。', source:'2024年5月 問14'},
+  {id:'F29', subjectId:'finance', type:'choice', question:'株式の投資指標のうち、（　）は、株価を1株当たり純資産で除して算出される。', choices:['PBR','PER','ROE'], answer:0, explanation:'PBR=株価÷1株当たり純資産。PERは株価÷1株当たり純利益、ROEは当期純利益÷自己資本。', source:'2024年5月 問42'},
+  {id:'F30', subjectId:'finance', type:'choice', question:'株式の投資指標のうち、（　）は、株価を1株当たり当期純利益で除して算出される。', choices:['PBR','PER','BPS'], answer:1, explanation:'PER=株価÷1株当たり純利益。PBRは株価÷純資産、BPSは純資産÷発行済株式数。', source:'2024年1月 問44'},
+  {id:'F31', subjectId:'finance', type:'ox', question:'日経平均株価は、東京証券取引所スタンダード市場に上場している代表的な225銘柄を対象として算出される。', answer:false, explanation:'日経平均株価はプライム市場に上場している225銘柄が対象。スタンダード市場ではない。', source:'2023年9月 問14'},
+  {id:'F32', subjectId:'finance', type:'choice', question:'株式の投資指標として利用されるROEは、（①）を（②）で除して算出される。', choices:['① 当期純利益　② 自己資本','① 当期純利益　② 総資産','① 営業利益　② 総資産'], answer:0, explanation:'ROE=当期純利益÷自己資本×100。選択肢2はROA、選択肢3は総資産営業利益率。', source:'2023年9月 問44'},
+  {id:'F33', subjectId:'finance', type:'ox', question:'配当性向とは、株価に対する1株当たり年間配当金の割合を示す指標である。', answer:false, explanation:'株価に対する配当金の割合は配当利回り。配当性向は当期純利益に対する配当金の割合。', source:'2023年5月 問14'},
+  {id:'F34', subjectId:'finance', type:'ox', question:'為替予約を締結していない外貨定期預金において、満期時の為替レートが預入時の為替レートに比べて円高になれば、当該外貨定期預金の円換算の利回りは高くなる。', answer:false, explanation:'円高になると外貨を円に換算した際の金額が減るため、円換算の利回りは低下する。', source:'2024年1月 問14'},
+  {id:'F35', subjectId:'finance', type:'choice', question:'外貨預金の預入時において、預入金融機関が提示する（　）は、預金者が円貨を外貨に換える際に適用される為替レートである。', choices:['TTB','TTM','TTS'], answer:2, explanation:'TTS（対顧客電信売相場）は預金者が円を外貨に換える際に適用。銀行が外貨を売るレート。', source:'2023年9月 問45'},
+  {id:'F36', subjectId:'finance', type:'ox', question:'外貨預金の払戻し時において、預入金融機関が提示する対顧客電信買相場（TTB）は、預金者が外貨を円貨に換える際に適用される為替レートである。', answer:true, explanation:'TTBは銀行が外貨を買い取るレートで、預金者が外貨を円に換える際に適用される。', source:'2023年1月 問15'},
+  {id:'F37', subjectId:'finance', type:'choice', question:'為替予約を締結していない外貨定期預金において、満期時の為替レートが預入時の為替レートに比べて（①）になれば、当該外貨定期預金の円換算の利回りは（②）なる。', choices:['① 円高　② 高く','① 円安　② 高く','① 円安　② 低く'], answer:1, explanation:'円安になると外貨の円換算額が増えるため、円換算の利回りは高くなる。', source:'2022年9月 問44'},
+  {id:'F38', subjectId:'finance', type:'choice', question:'異なる2資産からなるポートフォリオにおいて、2資産間の相関係数が（　）である場合、分散投資によるリスクの低減効果は最大となる。', choices:['－1','0','＋1'], answer:0, explanation:'相関係数が-1のとき2資産が正反対の値動きをするため、リスク低減効果は最大。', source:'2025年5月 問43'},
+  {id:'F39', subjectId:'finance', type:'choice', question:'A資産の期待収益率が2.0％、B資産の期待収益率が5.0％の場合に、A資産を40％、B資産を60％の割合で組み入れたポートフォリオの期待収益率は、（　）である。', choices:['3.5％','3.8％','7.0％'], answer:1, explanation:'2.0%×40%+5.0%×60%=0.8+3.0=3.8％', source:'2024年5月 問43'},
+  {id:'F40', subjectId:'finance', type:'choice', question:'異なる2資産からなるポートフォリオにおいて、2資産間の相関係数が（　）である場合、分散投資によるリスクの低減効果は最大となる。', choices:['＋1','0','－1'], answer:2, explanation:'相関係数が-1のとき2資産が逆の値動きをし、リスク低減効果が最大となる。', source:'2024年1月 問45'},
+  {id:'F41', subjectId:'finance', type:'choice', question:'A資産の期待収益率が3.0％、B資産の期待収益率が5.0％の場合に、A資産を40％、B資産を60％の割合で組み入れたポートフォリオの期待収益率は、（　）である。', choices:['1.8％','4.0％','4.2％'], answer:2, explanation:'3.0%×40%+5.0%×60%=1.2+3.0=4.2％', source:'2023年5月 問44'},
+  {id:'F42', subjectId:'finance', type:'choice', question:'預金保険制度による保護の対象となる預金等のうち、定期預金などの一般預金等については、原則として、1金融機関ごとに預金者1人当たり元本（　）までとその利息等が保護される。', choices:['500万円','1,000万円','1,500万円'], answer:1, explanation:'預金保険制度は1金融機関ごとに預金者1人当たり元本1,000万円とその利息を保護。', source:'2025年5月 問45'},
+  {id:'F43', subjectId:'finance', type:'ox', question:'金融商品取引法によれば、金融商品取引業者等は、顧客の知識、経験、財産の状況および取引契約締結の目的に照らして、投資者の保護に欠けるおそれがある不適当な勧誘を行ってはならないとされている。', answer:true, explanation:'これは適合性の原則と呼ばれ、顧客に不適当な勧誘を禁止する規定。', source:'2024年5月 問15'},
+  {id:'F44', subjectId:'finance', type:'choice', question:'預金保険制度の対象金融機関に預け入れた（　）は、預入金額の多寡にかかわらず、その全額が預金保険制度による保護の対象となる。', choices:['定期積金','決済用預金','定期預金'], answer:1, explanation:'決済用預金は無利息・要求払い・決済機能の3条件を満たし、全額が保護対象。', source:'2024年5月 問45'},
+  {id:'F45', subjectId:'finance', type:'ox', question:'日本国内に本店のある銀行の国内支店に預け入れた外貨預金は、元本1,000万円までとその利息が預金保険制度による保護の対象となる。', answer:false, explanation:'外貨預金は預金保険制度の保護対象外。国内銀行の国内支店であっても対象外。', source:'2024年1月 問15'},
+{id:'T6', subjectId:'tax', type:'choice', question:'所得税において、病気で入院したことにより医療保険の被保険者が受け取った入院給付金は、（　）とされる。', answer:0, explanation:'身体の傷害に基因して取得する保険金は所得税法上の非課税所得に該当する。', source:'2024年1月 問46', choices:['非課税所得','一時所得','雑所得']},
+  {id:'T7', subjectId:'tax', type:'ox', question:'電車・バス等の交通機関を利用して通勤している給与所得者が、勤務先から受ける通勤手当は、所得税法上、月額10万円を限度に非課税とされる。', answer:false, explanation:'通勤手当の非課税限度額は月額15万円である。', source:'2023年9月 問16'},
+  {id:'T8', subjectId:'tax', type:'choice', question:'固定資産のうち、（　）は減価償却の対象とされない資産である。', answer:2, explanation:'土地は時間経過しても価値が減少しないため減価償却の対象外。建物やソフトウェアは対象となる。', source:'2023年9月 問46', choices:['特許権','ソフトウエア','土地']},
+  {id:'T9', subjectId:'tax', type:'ox', question:'所得税において、国債や地方債などの特定公社債の利子は、総合課税の対象となる。', answer:false, explanation:'特定公社債の利子は申告分離課税の対象であり、総合課税ではない。', source:'2023年5月 問16'},
+  {id:'T10', subjectId:'tax', type:'choice', question:'2025年中に取得した建物（鉱業用減価償却資産等を除く）に係る減価償却の方法は、（　）である。', answer:0, explanation:'1998年4月1日以降に取得した建物の償却方法は定額法によらなければならない。', source:'2023年5月 問46', choices:['定額法','定率法','低価法']},
+  {id:'T11', subjectId:'tax', type:'ox', question:'所得税において、老齢基礎年金や老齢厚生年金を受け取ったことによる所得は、非課税所得となる。', answer:false, explanation:'老齢年金は公的年金等に係る雑所得として所得税の課税対象となる。障害年金や遺族年金は非課税。', source:'2023年1月 問16'},
+  {id:'T12', subjectId:'tax', type:'choice', question:'固定資産のうち、（　）は減価償却の対象とされない資産である。', answer:1, explanation:'土地は時間経過しても価値が減少しないため減価償却の対象外。', source:'2022年9月 問46', choices:['ソフトウエア','土地','建物']},
+  {id:'T13', subjectId:'tax', type:'ox', question:'物品販売業を営む個人事業主による事業所得の金額計算において、商品の売上原価は「期末商品棚卸高＋仕入金額－期首商品棚卸高」の算式により計算する。', answer:false, explanation:'正しい算式は「期首商品棚卸高＋仕入金額－期末商品棚卸高」であり、期首と期末が逆。', source:'2025年5月 問18'},
+  {id:'T14', subjectId:'tax', type:'choice', question:'所得税における一時所得に係る総収入金額が300万円で、その収入を得るために支出した金額が100万円である場合、一時所得の金額は（①）となり、そのうち総所得金額に算入される金額は（②）となる。', answer:1, explanation:'一時所得＝300万-100万-50万(特別控除)＝150万円。総所得金額算入額はその1/2で75万円。', source:'2025年5月 問46', choices:['① 150万円 ② 50万円','① 150万円 ② 75万円','① 200万円 ② 150万円']},
+  {id:'T15', subjectId:'tax', type:'ox', question:'個人が受け取った非上場株式の配当については、その金額の多寡にかかわらず、所得税の確定申告不要制度を選択することができる。', answer:false, explanation:'非上場株式の配当は1回の支払につき年換算10万円以下の少額配当に限り確定申告不要にできる。', source:'2024年5月 問17'},
+  {id:'T16', subjectId:'tax', type:'ox', question:'所得税において、賃貸アパートの貸付による所得は、その貸付が事業的規模で行われていたとしても、不動産所得となる。', answer:true, explanation:'事業的規模であっても不動産の貸付による所得は不動産所得であり、事業所得にはならない。', source:'2024年5月 問18'},
+  {id:'T17', subjectId:'tax', type:'choice', question:'国債や地方債などの特定公社債の利子は、原則として、（①）課税の対象となるが、確定申告不要制度を選択すること（②）。', answer:2, explanation:'特定公社債の利子は申告分離課税の対象で、確定申告不要制度を選択することもできる。', source:'2024年5月 問46', choices:['① 総合 ② ができる','① 源泉分離 ② はできない','① 申告分離 ② ができる']},
+  {id:'T18', subjectId:'tax', type:'ox', question:'所得税における一時所得に係る総収入金額が400万円で、その収入を得るために支出した金額が200万円である場合、一時所得の金額のうち総所得金額に算入される金額は、75万円である。', answer:true, explanation:'(400万-200万-50万)×1/2＝75万円。', source:'2024年1月 問16'},
+  {id:'T19', subjectId:'tax', type:'ox', question:'個人が賃貸アパートの敷地および建物を売却したことにより生じた所得は、不動産所得となる。', answer:false, explanation:'不動産の売却による所得は譲渡所得であり、不動産所得ではない。不動産所得は貸付による所得。', source:'2024年1月 問17'},
+  {id:'T20', subjectId:'tax', type:'choice', question:'所得税において、為替予約を締結していない外貨定期預金を満期時に円貨で払い戻した結果生じた為替差益は、（　）として総合課税の対象となる。', answer:2, explanation:'為替予約なしの外貨預金の為替差益は雑所得として総合課税の対象。', source:'2024年1月 問47', choices:['利子所得','一時所得','雑所得']},
+  {id:'T21', subjectId:'tax', type:'choice', question:'日本国内において支払を受ける預貯金の利子は、原則として、所得税および復興特別所得税と住民税の合計で（①）の税率による（②）分離課税の対象となる。', answer:2, explanation:'預貯金の利子は20.315%の源泉分離課税。所得税15%+復興特別所得税0.315%+住民税5%。', source:'2024年1月 問48', choices:['① 10.21％ ② 申告','① 20.315％ ② 申告','① 20.315％ ② 源泉']},
+  {id:'T22', subjectId:'tax', type:'ox', question:'所得税において、不動産所得、事業所得、山林所得、譲渡所得の金額の計算上生じた損失の金額は、一定のものを除き、他の所得金額と損益通算することができる。', answer:true, explanation:'損益通算できるのは不動産・事業・山林・譲渡の4所得（富士山上）。ただし一定の除外あり。', source:'2024年5月 問19'},
+  {id:'T23', subjectId:'tax', type:'choice', question:'所得税において、（　）、事業所得、山林所得、譲渡所得の金額の計算上生じた損失の金額は、一定の場合を除き、他の所得の金額と損益通算することができる。', answer:1, explanation:'損益通算可能な4所得は不動産所得・事業所得・山林所得・譲渡所得（富士山上）。', source:'2023年5月 問47', choices:['一時所得','不動産所得','雑所得']},
+  {id:'T24', subjectId:'tax', type:'choice', question:'不動産所得の金額の計算上生じた損失の金額のうち、損益通算の対象となる金額はいくらか。（収入200万円、必要経費400万円うち土地取得の借入金利子50万円）', answer:0, explanation:'損失200万円から土地取得の借入金利子50万円を除いた150万円が損益通算可能。', source:'2023年1月 問48', choices:['150万円','200万円','400万円']},
+  {id:'T25', subjectId:'tax', type:'ox', question:'上場株式を譲渡したことによる譲渡所得の金額の計算上生じた損失の金額は、確定申告をすることにより、不動産所得や事業所得などの他の所得金額と損益通算することができる。', answer:false, explanation:'上場株式の譲渡損失は申告分離課税のため、総合課税の所得とは損益通算できない。', source:'2022年9月 問17'},
+  {id:'T26', subjectId:'tax', type:'ox', question:'所得税において、納税者の合計所得金額が1,000万円を超えている場合、配偶者の合計所得金額の多寡にかかわらず、納税者は配偶者控除の適用を受けることはできない。', answer:true, explanation:'配偶者控除は納税者本人の合計所得金額が1,000万円以下であることが要件。', source:'2025年5月 問20'},
+  {id:'T27', subjectId:'tax', type:'choice', question:'所得税において、国民年金基金に加入して支払った掛金は、（　）の対象となる。', answer:1, explanation:'国民年金基金の掛金は全額が社会保険料控除の対象。', source:'2025年5月 問47', choices:['生命保険料控除','社会保険料控除','小規模企業共済等掛金控除']},
+  {id:'T28', subjectId:'tax', type:'choice', question:'所得税において、個人が支払う地震保険の保険料に係る地震保険料控除は、原則として、（①）を限度として年間支払保険料の（②）が控除額となる。', answer:0, explanation:'所得税の地震保険料控除は5万円を限度に年間支払保険料の全額が控除対象。', source:'2025年5月 問48', choices:['① 5万円 ② 全額','① 5万円 ② 2分の1相当額','① 10万円 ② 2分の1相当額']},
+  {id:'T29', subjectId:'tax', type:'ox', question:'夫が生計を一にする妻に係る医療費を支払った場合に、妻の合計所得金額が58万円を超えるときは、その支払った医療費は夫に係る所得税の医療費控除の対象とならない。', answer:false, explanation:'医療費控除に納税者本人や家族の合計所得金額の要件はなく、所得の多寡にかかわらず適用可能。', source:'2024年5月 問20'},
+  {id:'T30', subjectId:'tax', type:'choice', question:'所得税において、（　）は、所得控除に該当する。', answer:1, explanation:'配当控除と住宅借入金等特別控除は税額控除。雑損控除は所得控除に該当する。', source:'2024年5月 問47', choices:['配当控除','雑損控除','住宅借入金等特別控除']},
+  {id:'T31', subjectId:'tax', type:'choice', question:'納税者が2012年1月1日以後に締結した生命保険契約により、一般の生命保険料控除、個人年金保険料控除および介護医療保険料控除の対象となる保険料をそれぞれ年間10万円支払った場合、支払った年分の生命保険料控除の控除額はいくらか。', answer:0, explanation:'2012年以降の契約では各控除の限度額は4万円。10万円支払でも各4万円×3＝12万円。', source:'2024年5月 問48', choices:['12万円','15万円','30万円']},
+  {id:'T32', subjectId:'tax', type:'ox', question:'所得税において、納税者の合計所得金額が1,000万円を超えている場合、医療費控除の適用を受けることができない。', answer:false, explanation:'医療費控除には納税者の合計所得金額の要件がなく、所得水準にかかわらず適用可能。', source:'2024年1月 問18'},
+  {id:'T33', subjectId:'tax', type:'ox', question:'所得税において、その年の12月31日時点の年齢が16歳未満である扶養親族は、扶養控除の対象となる控除対象扶養親族に該当しない。', answer:true, explanation:'控除対象扶養親族は16歳以上が要件。16歳未満は児童手当の対象であり扶養控除の対象外。', source:'2024年1月 問19'},
+  {id:'T34', subjectId:'tax', type:'choice', question:'住宅ローンを利用して認定長期優良住宅を新築し、新たに所得税における住宅借入金等特別控除の適用を受ける場合、控除期間は最長で（　）である。', answer:1, explanation:'住宅ローン控除の控除期間は最長13年間。年末残高の0.7%相当額を所得税額から控除。', source:'2025年5月 問49', choices:['10年','13年','15年']},
+  {id:'T35', subjectId:'tax', type:'choice', question:'住宅ローンを利用してマンションを取得し、新たに所得税における住宅借入金等特別控除の適用を受ける場合、住宅借入金の償還期間は（　）以上でなければならない。', answer:0, explanation:'住宅ローン控除の適用要件として返済期間が10年以上であることが必要。', source:'2024年5月 問49', choices:['10年','13年','15年']},
+  {id:'T36', subjectId:'tax', type:'ox', question:'上場株式の配当に係る配当所得について申告分離課税を選択した場合、配当控除の適用を受けることができない。', answer:true, explanation:'配当控除を受けるには総合課税での確定申告が必要。申告分離課税では適用不可。', source:'2024年1月 問20'},
+  {id:'T37', subjectId:'tax', type:'ox', question:'上場不動産投資信託（J-REIT）の分配金は、確定申告をすることにより所得税の配当控除の適用を受けることができる。', answer:false, explanation:'J-REITの分配金は配当控除の対象外。法人税課税前の利益を分配するため二重課税の問題がない。', source:'2023年9月 問19'},
+  {id:'T38', subjectId:'tax', type:'ox', question:'住宅ローンを利用してマンションを取得し、所得税の住宅借入金等特別控除の適用を受ける場合、借入金の償還期間は、20年以上でなければならない。', answer:false, explanation:'住宅ローン控除の要件は返済期間10年以上。20年以上ではない。', source:'2023年5月 問20'},
+  {id:'T39', subjectId:'tax', type:'choice', question:'1月16日以後に新たに事業所得を生ずべき業務を開始した者が、その年分から所得税の青色申告の承認を受けようとする場合、業務を開始した日から（　）以内に、青色申告承認申請書を納税地の所轄税務署長に提出しなければならない。', answer:0, explanation:'1月16日以後の新規開業の場合、開業日から2カ月以内に申請書を提出する必要がある。', source:'2025年5月 問50', choices:['2カ月','3カ月','6カ月']},
+  {id:'T40', subjectId:'tax', type:'choice', question:'年末調整の対象となる給与所得者のうち、（　）は、所得税の確定申告をする必要がある。', answer:1, explanation:'住宅ローン控除の初年度は確定申告が必要。2年目以降は年末調整で対応可能。', source:'2024年5月 問50', choices:['給与の年間収入金額が1,000万円を超える者','初めて住宅借入金等特別控除の適用を受けようとする者','生命保険料控除の適用を受けようとする者']},
+  {id:'T41', subjectId:'tax', type:'ox', question:'給与所得者のうち、その年中に支払を受けるべき給与の収入金額が1,000万円を超える者は、所得税の確定申告をしなければならない。', answer:false, explanation:'確定申告が必要となる基準は給与収入2,000万円超。1,000万円ではない。', source:'2023年9月 問20'},
+  {id:'T42', subjectId:'tax', type:'choice', question:'1月16日以後に新たに事業所得を生ずべき業務を開始した者が、その年分から所得税の青色申告の承認を受けようとする場合、業務を開始した日から（　）以内に、青色申告承認申請書を提出しなければならない。', answer:0, explanation:'新規開業者の青色申告承認申請書の提出期限は開業日から2カ月以内。', source:'2023年9月 問50', choices:['2カ月','3カ月','6カ月']},
+  {id:'T43', subjectId:'tax', type:'choice', question:'所得税の確定申告をしなければならない者は、原則として、所得が生じた年の翌年の（①）から（②）までの間に、納税地の所轄税務署長に対して確定申告書を提出しなければならない。', answer:1, explanation:'所得税の確定申告期間は翌年2月16日から3月15日まで。', source:'2023年5月 問49', choices:['① 2月1日 ② 3月15日','① 2月16日 ② 3月15日','① 2月16日 ② 3月31日']},
+{id:'E6', subjectId:'realestate', type:'ox', question:'不動産の登記事項証明書の交付を請求することができる者は、当該不動産に利害関係を有する者に限られる。', answer:false, explanation:'登記事項証明書は法務局で手数料を納付すれば、利害関係にかかわらず誰でも交付を請求できます。', source:'2024年5月 問21'},
+  {id:'E7', subjectId:'realestate', type:'ox', question:'不動産の登記記録において、所有権の移転に関する事項は、権利部（甲区）に記録される。', answer:true, explanation:'権利部甲区には所有権に関する事項が、乙区には所有権以外の権利に関する事項が記録されます。', source:'2024年1月 問21'},
+  {id:'E8', subjectId:'realestate', type:'choice', question:'宅地に係る固定資産税評価額は、原則として、（①）ごとの基準年度において評価替えが行われ、前年の地価公示法による公示価格等の（②）を目途として評定される。', choices:['① 3年　② 70％','① 3年　② 80％','① 5年　② 80％'], answer:0, explanation:'固定資産税評価額は公示価格の70%を目安に、原則3年ごとに評価替えが行われます。', source:'2024年1月 問51'},
+  {id:'E9', subjectId:'realestate', type:'ox', question:'不動産の登記事項証明書は、対象不動産について利害関係を有する者以外であっても、交付を請求することができる。', answer:true, explanation:'登記事項証明書は法務局で手数料を納付すれば、利害関係にかかわらず誰でも交付を請求できます。', source:'2023年9月 問21'},
+  {id:'E10', subjectId:'realestate', type:'choice', question:'相続税路線価は、相続税や（①）を算定する際の土地等の評価額の基準となる価格であり、地価公示法による公示価格の（②）を価格水準の目安として設定される。', choices:['① 贈与税　② 70％','① 贈与税　② 80％','① 固定資産税　② 80％'], answer:1, explanation:'相続税路線価は贈与税・相続税の評価に用いられ、公示価格の80%を目安に国税庁が毎年公表します。', source:'2023年9月 問51'},
+  {id:'E11', subjectId:'realestate', type:'ox', question:'不動産登記には公信力が認められていないため、登記記録上の権利者が真実の権利者と異なっている場合に、登記記録を信じて不動産を購入した者は、原則として、その不動産に対する権利の取得について法的に保護されない。', answer:true, explanation:'日本の不動産登記には対抗力はあるが公信力はないため、登記が虚偽の場合、登記を信用した購入者も原則保護されません。', source:'2023年5月 問21'},
+  {id:'E12', subjectId:'realestate', type:'choice', question:'宅地建物取引業法によれば、宅地建物取引業者が自ら売主となる宅地または建物の売買契約締結時に、取引相手が宅地建物取引業者でない場合、代金額の（　）を超える手付金を受領することができない。', choices:['5％','10％','20％'], answer:2, explanation:'宅建業法では業者売主と一般消費者の取引において、手付金は売買代金の20%が上限とされています。', source:'2025年5月 問51'},
+  {id:'E13', subjectId:'realestate', type:'ox', question:'借地借家法によれば、建物の賃貸借契約（定期建物賃貸借等を除く）において、賃貸借期間として1年未満の期間を定めた場合、期間の定めのない賃貸借契約とみなされる。', answer:true, explanation:'普通借家契約では1年未満の期間を定めた場合、期間の定めがない賃貸借とみなされます。', source:'2024年5月 問22'},
+  {id:'E14', subjectId:'realestate', type:'choice', question:'宅地建物取引業法上の媒介契約のうち、（①）では、依頼者は他の宅地建物取引業者に重ねて媒介の依頼をすることができるが、（②）では、依頼者は他の宅地建物取引業者に重ねて媒介の依頼をすることが禁じられている。', choices:['① 一般媒介契約　② 専任媒介契約','① 専任媒介契約　② 一般媒介契約','① 専任媒介契約　② 専属専任媒介契約'], answer:0, explanation:'他の業者への重複依頼が可能なのは一般媒介契約のみで、専任媒介契約・専属専任媒介契約では禁止されています。', source:'2024年5月 問51'},
+  {id:'E15', subjectId:'realestate', type:'ox', question:'宅地建物取引業法によれば、宅地または建物の売買の媒介契約のうち、専任媒介契約を締結した宅地建物取引業者は、依頼者に対し、当該契約に係る業務の処理状況を2カ月に1回以上報告しなければならない。', answer:false, explanation:'専任媒介契約では2週間に1回以上の報告が必要です（専属専任媒介は1週間に1回以上）。', source:'2024年1月 問22'},
+  {id:'E16', subjectId:'realestate', type:'ox', question:'定期建物賃貸借契約では、貸主に正当の事由があると認められる場合でなければ、貸主は借主からの契約更新請求を拒むことができないとされている。', answer:false, explanation:'定期借家契約は期間満了で必ず終了し、正当事由は不要です。正当事由が必要なのは普通借家契約です。', source:'2023年9月 問22'},
+  {id:'E17', subjectId:'realestate', type:'ox', question:'アパートやマンションの所有者が、当該建物を賃貸して家賃収入を得るためには、宅地建物取引業の免許を取得しなければならない。', answer:false, explanation:'自己所有物件の賃貸（大家業）は宅地建物取引業に該当しないため、免許は不要です。', source:'2023年5月 問22'},
+  {id:'E18', subjectId:'realestate', type:'choice', question:'定期建物賃貸借契約の賃貸借期間が1年以上である場合、賃貸人は、原則として、期間満了の1年前から（　）前までの間に、賃借人に対して期間満了により契約が終了する旨の通知をしなければ、その終了を賃借人に対抗することができない。', choices:['1カ月','3カ月','6カ月'], answer:2, explanation:'定期借家契約で期間1年以上の場合、貸主は期間満了の1年前から6カ月前までに終了通知が必要です。', source:'2023年5月 問52'},
+  {id:'E19', subjectId:'realestate', type:'choice', question:'200㎡の土地に建築面積100㎡、延べ面積150㎡の2階建て住宅を建築した場合、当該建物の建蔽率は（　）である。', choices:['50％','75％','100％'], answer:0, explanation:'建蔽率＝建築面積÷敷地面積＝100㎡÷200㎡＝50%。延べ面積は容積率の計算に使います。', source:'2025年5月 問52'},
+  {id:'E20', subjectId:'realestate', type:'choice', question:'建物の区分所有等に関する法律（区分所有法）によれば、共用部分に対する各区分所有者の共有持分は、各共有者が有する（①）によるものとされており、当該規定は規約で別段の定めをすることが（②）。', choices:['① 戸数の総戸数に占める割合　② できる','① 専有部分の床面積の割合　② できない','① 専有部分の床面積の割合　② できる'], answer:2, explanation:'共用部分の共有持分は専有部分の床面積の割合によりますが、規約で別段の定めをすることもできます。', source:'2025年5月 問53'},
+  {id:'E21', subjectId:'realestate', type:'ox', question:'都市計画法によれば、市街化区域は、既に市街地を形成している区域およびおおむね10年以内に優先的かつ計画的に市街化を図るべき区域とされている。', answer:true, explanation:'市街化区域は既存市街地と今後おおむね10年以内に計画的に市街化する区域と定義されています。', source:'2024年5月 問23'},
+  {id:'E22', subjectId:'realestate', type:'choice', question:'建築基準法によれば、都市計画区域および準都市計画区域内にある建築物の敷地は、原則として、幅員（①）以上の道路に（②）以上接していなければならない。', choices:['① 2ｍ　② 4ｍ','① 4ｍ　② 2ｍ','① 6ｍ　② 3ｍ'], answer:1, explanation:'接道義務により、建築物の敷地は幅員4m以上の道路に2m以上接する必要があります。', source:'2024年5月 問52'},
+  {id:'E23', subjectId:'realestate', type:'choice', question:'建物の区分所有等に関する法律（区分所有法）によれば、区分所有者および議決権の各（　）以上の多数による集会の決議により、規約の変更をすることができる。', choices:['3分の2','4分の3','5分の4'], answer:1, explanation:'区分所有建物の規約変更には、区分所有者および議決権の各4分の3以上の賛成が必要です。', source:'2024年5月 問53'},
+  {id:'E24', subjectId:'realestate', type:'ox', question:'建築基準法によれば、建築物が防火地域および準防火地域にわたる場合、原則として、その全部について、敷地の過半が属する地域内の建築物に関する規定が適用される。', answer:false, explanation:'防火地域と準防火地域にまたがる場合、より厳しい防火地域の規定が建物全体に適用されます。', source:'2024年1月 問23'},
+  {id:'E25', subjectId:'realestate', type:'choice', question:'都市計画法によれば、市街化調整区域は、（　）とされている。', choices:['既に市街地を形成している区域','市街化を抑制すべき区域','優先的かつ計画的に市街化を図るべき区域'], answer:1, explanation:'市街化調整区域は「市街化を抑制すべき区域」と定義されます。市街化区域とは対照的な区域です。', source:'2024年1月 問52'},
+  {id:'E26', subjectId:'realestate', type:'choice', question:'都市計画区域内にある幅員4ｍ未満の道で、建築基準法第42条第2項により道路とみなされるものについては、原則として、その中心線からの水平距離で（①）後退した線がその道路の境界線とみなされ、当該境界線と道路の間の敷地部分は建蔽率や容積率を算定する際の敷地面積に算入（②）。', choices:['① 2ｍ　② することができる','① 2ｍ　② することができない','① 4ｍ　② することができない'], answer:1, explanation:'2項道路では中心線から2mセットバックした線が境界とみなされ、セットバック部分は敷地面積に算入できません。', source:'2024年1月 問53'},
+  {id:'E27', subjectId:'realestate', type:'choice', question:'農地法によれば、農地を農地以外のものに転用する場合、原則として、（①）の許可を受けなければならないが、市街化区域内にある農地を農地以外のものに転用する場合、あらかじめ当該転用に係る届出書を（②）に提出すれば、（①）の許可を受ける必要はない。', choices:['① 農林水産大臣　② 都道府県知事等','① 農林水産大臣　② 農業委員会','① 都道府県知事等　② 農業委員会'], answer:2, explanation:'農地転用は原則として都道府県知事等の許可が必要ですが、市街化区域内は農業委員会への届出で足ります。', source:'2024年1月 問54'},
+  {id:'E28', subjectId:'realestate', type:'ox', question:'贈与や相続により不動産を取得した場合、不動産取得税は課されない。', answer:false, explanation:'不動産取得税は相続では非課税ですが、贈与では課税されます。問題文は贈与も非課税としており誤りです。', source:'2024年5月 問24'},
+  {id:'E29', subjectId:'realestate', type:'ox', question:'不動産取得税は、相続人が不動産を相続により取得した場合には課されない。', answer:true, explanation:'不動産取得税は相続による取得には課されません。形式的な所有権移転であるためです。', source:'2024年1月 問24'},
+  {id:'E30', subjectId:'realestate', type:'choice', question:'固定資産税における小規模住宅用地（住宅用地で住宅1戸につき200㎡以下の部分）の課税標準については、当該住宅用地に係る固定資産税の課税標準となるべき価格の（　）の額とする特例がある。', choices:['2分の1','4分の1','6分の1'], answer:2, explanation:'小規模住宅用地の固定資産税の課税標準は評価額の6分の1に軽減されます。', source:'2022年9月 問55'},
+  {id:'E31', subjectId:'realestate', type:'ox', question:'不動産取得税は、相続人が不動産を相続により取得した場合には課されない。', answer:true, explanation:'相続による不動産取得は形式的な所有権移転のため、不動産取得税は非課税です。', source:'2022年1月 問25'},
+  {id:'E32', subjectId:'realestate', type:'choice', question:'個人が土地を譲渡したことによる譲渡所得の金額の計算において、譲渡した土地の取得費が不明である場合には、譲渡収入金額の（　）相当額を取得費とすることができる。', choices:['5％','10％','15％'], answer:0, explanation:'取得費が不明な場合、譲渡収入金額の5%を概算取得費として用いることができます。', source:'2025年5月 問54'},
+  {id:'E33', subjectId:'realestate', type:'choice', question:'被相続人の居住用家屋およびその敷地を単独で相続した被相続人の子が、当該家屋およびその敷地を譲渡し、「被相続人の居住用財産（空き家）に係る譲渡所得の特別控除の特例」の適用を受けた場合、譲渡所得の金額の計算上、最高で（　）を控除することができる。', choices:['1,000万円','2,000万円','3,000万円'], answer:2, explanation:'空き家特例では単独相続の場合、最高3,000万円を控除できます（3人以上の共同相続は1人2,000万円が限度）。', source:'2025年5月 問55'},
+  {id:'E34', subjectId:'realestate', type:'choice', question:'個人が土地を譲渡した場合の所得税額の計算において、当該譲渡に係る所得が長期譲渡所得に区分されるためには、土地を譲渡した年の1月1日において所有期間が（　）を超えていなければならない。', choices:['5年','10年','15年'], answer:0, explanation:'譲渡年の1月1日時点で所有期間が5年超なら長期譲渡所得、5年以下なら短期譲渡所得に区分されます。', source:'2024年5月 問54'},
+  {id:'E35', subjectId:'realestate', type:'choice', question:'自己が居住していた家屋を譲渡する場合、その家屋に自己が居住しなくなった日から（①）を経過する日の属する年の（②）までの間に譲渡しなければ、「居住用財産を譲渡した場合の3,000万円の特別控除」の適用を受けることができない。', choices:['① 1年　② 12月31日','① 3年　② 3月15日','① 3年　② 12月31日'], answer:2, explanation:'3,000万円特別控除は、居住しなくなってから3年を経過する日の属する年の12月31日までに譲渡する必要があります。', source:'2024年5月 問55'},
+  {id:'E36', subjectId:'realestate', type:'choice', question:'所得税額の計算において、個人が土地を譲渡したことによる譲渡所得が長期譲渡所得に区分されるためには、土地を譲渡した年の1月1日における所有期間が（　）を超えていなければならない。', choices:['5年','10年','20年'], answer:0, explanation:'譲渡年の1月1日時点で所有期間5年超が長期譲渡所得の要件です。', source:'2024年1月 問55'},
+  {id:'E37', subjectId:'realestate', type:'ox', question:'「居住用財産を譲渡した場合の長期譲渡所得の課税の特例」（軽減税率の特例）の適用を受けるには、譲渡した居住用財産の所有期間が譲渡した日の属する年の1月1日において10年を超えていなければならない。', answer:true, explanation:'軽減税率の特例は譲渡年の1月1日時点で所有期間10年超が要件で、6,000万円以下の部分に14.21%の軽減税率が適用されます。', source:'2023年9月 問25'},
+  {id:'E38', subjectId:'realestate', type:'choice', question:'自己が居住していた家屋を譲渡する場合、その家屋に居住しなくなった日から（①）を経過する日の属する年の（②）までに譲渡しなければ、「居住用財産を譲渡した場合の3,000万円の特別控除」の適用を受けることができない。', choices:['① 3年　② 3月15日','① 3年　② 12月31日','① 5年　② 12月31日'], answer:1, explanation:'3,000万円特別控除は居住しなくなってから3年経過日の属する年の12月31日までの譲渡が要件です。', source:'2023年9月 問55'},
+  {id:'E39', subjectId:'realestate', type:'ox', question:'土地の有効活用において、一般に、土地所有者が入居予定の事業会社から建設資金を借り受けて、事業会社の要望に沿った建物を建設し、その建物を事業会社に賃貸する方式を、事業受託方式という。', answer:false, explanation:'この記述は「建設協力金方式」の説明です。事業受託方式は専門業者にすべてを委任する方式です。', source:'2025年5月 問25'},
+  {id:'E40', subjectId:'realestate', type:'ox', question:'土地の有効活用において、土地所有者が土地の全部または一部を拠出し、デベロッパーが建設資金を負担してマンション等を建設し、それぞれの出資割合に応じて土地・建物に係る権利を取得する方式を、建設協力金方式という。', answer:false, explanation:'この記述は「等価交換方式」の説明です。建設協力金方式はテナントから協力金を借りて建物を建築する方式です。', source:'2024年5月 問25'},
+  {id:'E41', subjectId:'realestate', type:'ox', question:'純利回り（NOI利回り）は、対象不動産から得られる年間の総収入額を総投資額で除して算出される。', answer:false, explanation:'年間総収入を投資額で除すのは表面利回り（グロス利回り）です。純利回りは総収入から費用を差し引いた純収益を投資額で除して算出します。', source:'2024年1月 問25'},,
+{id:'S6', subjectId:'inheritance', type:'ox', question:'書面によらない贈与契約は、その履行前であれば、各当事者は契約の解除をすることができる。', answer:true, explanation:'民法上、書面によらない贈与は各当事者が撤回できる。ただし履行の終わった部分は撤回不可。', source:'2023年5月 問26'},
+  {id:'S7', subjectId:'inheritance', type:'ox', question:'定期贈与とは、贈与者が受贈者に対して定期的に財産を給付することを目的とする贈与をいい、贈与者または受贈者の死亡によって、その効力を失う。', answer:true, explanation:'定期贈与は当事者の人間関係が基礎であり、一方が死亡すると契約は終了し残りの給付義務は相続人に承継されない。', source:'2023年1月 問26'},
+  {id:'S8', subjectId:'inheritance', type:'ox', question:'死因贈与は、贈与者が財産を無償で与える意思を表示することのみで成立し、贈与者の死亡によって効力を生じる。', answer:false, explanation:'死因贈与は贈与契約の一種であり、遺贈と異なり贈与者の申込みと受贈者の承諾の両方が必要。', source:'2022年9月 問26'},
+  {id:'S9', subjectId:'inheritance', type:'ox', question:'贈与は、当事者の一方が財産を無償で相手方に与える意思表示をすれば、相手方が受諾しなくても、その効力が生じる。', answer:false, explanation:'贈与は契約であり、成立には当事者双方の合意が必要。相手方の受諾がなければ効力は生じない。', source:'2022年1月 問26'},
+  {id:'S10', subjectId:'inheritance', type:'ox', question:'贈与税の申告書は、受贈者が贈与者の住所地の所轄税務署長に提出しなければならない。', answer:false, explanation:'贈与税の申告書は贈与者ではなく受贈者の住所地を所轄する税務署長に提出する。', source:'2025年5月 問30'},
+  {id:'S11', subjectId:'inheritance', type:'choice', question:'贈与税の配偶者控除は、婚姻期間が（①）以上である配偶者から居住用不動産の贈与または居住用不動産を取得するための金銭の贈与を受け、所定の要件を満たす場合、贈与税の課税価格から基礎控除額のほかに最高で（②）を控除することができる特例である。', choices:['① 10年 ② 2,500万円','① 10年 ② 2,000万円','① 20年 ② 2,000万円'], answer:2, explanation:'贈与税の配偶者控除は婚姻期間20年以上で最高2,000万円を控除できる。基礎控除110万円と別途適用可能。', source:'2025年5月 問56'},
+  {id:'S12', subjectId:'inheritance', type:'ox', question:'「直系尊属から住宅取得等資金の贈与を受けた場合の贈与税の非課税」による非課税限度額は、受贈者ごとに、取得等した家屋が省エネ等住宅である場合は2,000万円、それ以外の住宅である場合は1,000万円である。', answer:false, explanation:'非課税限度額は省エネ等住宅で1,000万円、それ以外は500万円。問題文の金額は誤り。', source:'2024年5月 問26'},
+  {id:'S13', subjectId:'inheritance', type:'choice', question:'父母のそれぞれから同一年中に暦年課税による贈与を受けた場合、贈与税額の計算上、贈与税の課税価格から基礎控除額として最高で（）を控除することができる。', choices:['80万円','110万円','220万円'], answer:1, explanation:'暦年課税の基礎控除は贈与者ごとではなく受贈者ごとに年間110万円。複数人から贈与を受けても110万円が上限。', source:'2024年5月 問56'},
+  {id:'S14', subjectId:'inheritance', type:'choice', question:'贈与税の申告書は、原則として、贈与を受けた年の翌年の（①）から3月15日までの間に、（②）の住所地を所轄する税務署長に提出しなければならない。', choices:['① 2月1日 ② 受贈者','① 2月1日 ② 贈与者','① 2月16日 ② 贈与者'], answer:0, explanation:'贈与税の申告期間は2月1日から3月15日で、提出先は受贈者の住所地の所轄税務署長。所得税の2月16日～とは異なる。', source:'2024年1月 問56'},
+  {id:'S15', subjectId:'inheritance', type:'choice', question:'贈与税の配偶者控除は、婚姻期間が（①）以上である配偶者から居住用不動産または居住用不動産を取得するための金銭の贈与を受け、所定の要件を満たす場合、贈与税の課税価格から基礎控除額のほかに最高で（②）を控除することができる特例である。', choices:['① 10年 ② 2,000万円','① 20年 ② 2,000万円','① 20年 ② 2,500万円'], answer:1, explanation:'贈与税の配偶者控除は婚姻期間20年以上が要件で、最高2,000万円の控除が可能。同一配偶者から一生に一度のみ。', source:'2024年1月 問57'},
+  {id:'S16', subjectId:'inheritance', type:'ox', question:'個人が死因贈与により取得した財産は、課税の対象とならないものを除き、贈与税の課税対象となる。', answer:false, explanation:'死因贈与は贈与者の死亡により効力が生じるため、贈与税ではなく相続税の課税対象となる。', source:'2023年9月 問26'},
+  {id:'S17', subjectId:'inheritance', type:'ox', question:'親族間において著しく低い価額の対価で土地の譲渡が行われた場合、原則として、その譲渡があった時の土地の時価と支払った対価との差額に相当する金額が、贈与税の課税対象となる。', answer:true, explanation:'個人間で時価より著しく低い価額で財産を譲渡した場合、時価との差額がみなし贈与として贈与税の対象となる。', source:'2023年9月 問27'},
+  {id:'S18', subjectId:'inheritance', type:'choice', question:'「直系尊属から教育資金の一括贈与を受けた場合の贈与税の非課税」の適用を受けた場合、受贈者1人につき（①）までは贈与税が非課税となるが、学校等以外の者に対して直接支払われる金銭については、（②）が限度となる。', choices:['① 1,000万円 ② 500万円','① 1,500万円 ② 300万円','① 1,500万円 ② 500万円'], answer:2, explanation:'教育資金一括贈与の非課税枠は受贈者1人につき最大1,500万円。学校等以外への支払いは500万円が限度。', source:'2023年9月 問56'},
+  {id:'S19', subjectId:'inheritance', type:'choice', question:'被相続人Aさんの相続における父Cさんの法定相続分は次のうちどれか。（被相続人に子はなく、母Dさんはすでに死亡）', choices:['2分の1','3分の1','4分の1'], answer:1, explanation:'子がいないため配偶者と直系尊属が相続人。配偶者と直系尊属の場合、直系尊属の法定相続分は3分の1。', source:'2025年5月 問57'},
+  {id:'S20', subjectId:'inheritance', type:'ox', question:'自筆証書遺言の作成において、自筆証書に添付する財産目録については、自書によらずにパソコンで作成しても差し支えない。', answer:true, explanation:'2019年1月の法改正により財産目録はパソコン作成や通帳コピーが可能に。ただし各ページに署名押印が必要。', source:'2024年5月 問27'},
+  {id:'S21', subjectId:'inheritance', type:'choice', question:'Aさんの相続における子Cさんの法定相続分は次のうちどれか。（AさんとBさんは相続開始前に離婚、子CとDがいる）', choices:['2分の1','3分の1','4分の1'], answer:0, explanation:'離婚した元配偶者は相続人に含まれない。子CとDが第1順位の相続人として均等に分割するため各2分の1。', source:'2024年5月 問57'},
+  {id:'S22', subjectId:'inheritance', type:'ox', question:'相続において、養子の法定相続分は、実子の法定相続分の2分の1となる。', answer:false, explanation:'養子は法律上の子であり、法定相続分は実子と同等。普通養子・特別養子いずれも同じ。', source:'2024年1月 問27'},
+  {id:'S23', subjectId:'inheritance', type:'choice', question:'Aさんの相続における妻Bさんの法定相続分は次のうちどれか。（Aさんの父母は相続開始前に死亡、姉Cと兄Dがいる）', choices:['2分の1','3分の2','4分の3'], answer:2, explanation:'子も直系尊属もいないため配偶者と兄弟姉妹が相続人。この場合、配偶者の法定相続分は4分の3。', source:'2024年1月 問58'},
+  {id:'S24', subjectId:'inheritance', type:'ox', question:'共同相続人は、被相続人が遺言により相続分や遺産分割方法の指定をしていない場合、法定相続分どおりに相続財産を分割しなければならない。', answer:false, explanation:'法定相続分は目安に過ぎず、相続人全員の合意があれば法定相続分と異なる分割も可能。', source:'2023年9月 問28'},
+  {id:'S25', subjectId:'inheritance', type:'choice', question:'Aさんの相続における妻Bさんの法定相続分は次のうちどれか。（被相続人Aには子がなく、母Cが存命）', choices:['2分の1','3分の2','4分の3'], answer:1, explanation:'子がいないため配偶者と直系尊属が相続人。配偶者と直系尊属の場合、配偶者の法定相続分は3分の2。', source:'2023年9月 問57'},
+  {id:'S26', subjectId:'inheritance', type:'ox', question:'特別養子縁組が成立した場合、養子となった者と実方の父母との親族関係は終了する。', answer:true, explanation:'特別養子縁組では実父母との親族関係が完全に終了し、養父母との親子関係のみとなる。', source:'2023年5月 問27'},
+  {id:'S27', subjectId:'inheritance', type:'ox', question:'自筆証書遺言書保管制度を利用して、法務局（遺言書保管所）に保管されている自筆証書遺言については、家庭裁判所による検認の手続を要しない。', answer:true, explanation:'法務局が原本を保管し偽造変造のおそれがないため、通常の自筆証書遺言と異なり検認手続が不要。', source:'2023年5月 問28'},
+  {id:'S28', subjectId:'inheritance', type:'ox', question:'被相続人の配偶者が「配偶者に対する相続税額の軽減」の適用を受けた場合、配偶者の相続税の課税価格が、相続税の課税価格の合計額に対する配偶者の法定相続分相当額または2億円のいずれか多い金額までであれば、原則として、配偶者が納付すべき相続税額は算出されない。', answer:false, explanation:'配偶者の税額軽減は法定相続分相当額または1億6,000万円のいずれか多い額まで。2億円は誤り。', source:'2025年5月 問29'},
+  {id:'S29', subjectId:'inheritance', type:'ox', question:'被相続人の葬式後に相続人が負担した香典返戻費用は、相続税額の計算上、葬式費用として債務控除の対象となる。', answer:false, explanation:'香典返戻費用は税法上、葬式費用と認められず債務控除の対象外。墓地・仏壇の購入費や法会費用も同様。', source:'2024年5月 問28'},
+  {id:'S30', subjectId:'inheritance', type:'ox', question:'相続税額の計算上、遺産に係る基礎控除額は、「3,000万円＋600万円×法定相続人の数」の算式により計算する。', answer:true, explanation:'基礎控除額はこの算式で計算。相続放棄があっても放棄がなかったものとして法定相続人数を算定する。', source:'2024年5月 問29'},
+  {id:'S31', subjectId:'inheritance', type:'ox', question:'相続税の申告書の提出先は、原則として、被相続人の死亡の時における住所地の所轄税務署長である。', answer:true, explanation:'相続税の申告書は相続開始を知った日の翌日から10ヵ月以内に被相続人の死亡時の住所地の所轄税務署長に提出。', source:'2024年5月 問30'},
+  {id:'S32', subjectId:'inheritance', type:'ox', question:'相続税額の計算上、被相続人が生前に購入した墓碑の購入代金で、相続開始時において未払いであったものは、債務控除の対象となる。', answer:false, explanation:'墓地・墓石・仏壇等の非課税財産に係る未払金は債務控除の対象外。', source:'2024年1月 問28'},
+  {id:'S33', subjectId:'inheritance', type:'ox', question:'相続税の遺産に係る基礎控除額の計算上、法定相続人の数は、相続人のうちに相続の放棄をした者がいる場合、その放棄がなかったものとしたときの相続人の数とする。', answer:true, explanation:'相続税法では恣意的な税額変動を防ぐため、相続放棄があっても放棄がなかったものとして法定相続人数を算定。', source:'2024年1月 問29'},
+  {id:'S34', subjectId:'inheritance', type:'choice', question:'相続税額の計算上、死亡退職金の非課税金額の規定による非課税限度額は、「（）×法定相続人の数」の算式により算出される。', choices:['500万円','600万円','1,000万円'], answer:0, explanation:'死亡退職金の非課税限度額は「500万円×法定相続人の数」。これを超える部分が相続税の課税対象。', source:'2024年1月 問59'},
+  {id:'S35', subjectId:'inheritance', type:'choice', question:'死亡したAさんが所有していた上場株式Xを相続により取得した場合の1株当たりの相続税評価額は、下記の資料によれば、（）である。', choices:['540円','600円','620円'], answer:0, explanation:'上場株式の相続税評価は、課税時期の終値・当月平均・前月平均・前々月平均のうち最も低い金額。', source:'2024年5月 問58'},
+  {id:'S36', subjectId:'inheritance', type:'choice', question:'2026年1月10日に死亡したAさんが所有していた上場株式Xの1株当たりの相続税評価額は、下記の資料によれば、（）である。', choices:['1,480円','1,490円','1,500円'], answer:0, explanation:'上場株式の相続税評価は課税時期の終値・当月平均・前月平均・前々月平均のうち最も低い金額を選択。', source:'2024年1月 問60'},
+  {id:'S37', subjectId:'inheritance', type:'choice', question:'2025年9月7日に死亡したAさんが所有していた上場株式Xの1株当たりの相続税評価額は、下記の資料によれば、（）である。', choices:['1,180円','1,190円','1,200円'], answer:0, explanation:'上場株式の相続税評価は課税時期の終値・当月平均・前月平均・前々月平均のうち最も低い金額を選択。', source:'2022年9月 問60'},
+  {id:'S38', subjectId:'inheritance', type:'choice', question:'貸家の相続税評価額について、固定資産税評価額8,000万円、借家権割合30％、賃貸割合100％の場合の評価額は（）である。', choices:['2,400万円','5,600万円','6,560万円'], answer:1, explanation:'貸家の評価額＝固定資産税評価額×(1－借家権割合×賃貸割合)＝8,000万円×(1－0.3×1.0)＝5,600万円。', source:'2025年5月 問59'},
+  {id:'S39', subjectId:'inheritance', type:'choice', question:'貸家建付地の相続税評価額について、自用地としての価額1億5,000万円、借地権割合60％、借家権割合30％、賃貸割合100％の場合の評価額は（）である。', choices:['6,000万円','9,000万円','1億2,300万円'], answer:2, explanation:'貸家建付地の評価額＝自用地価額×(1－借地権割合×借家権割合×賃貸割合)＝1億5,000万円×0.82＝1億2,300万円。', source:'2024年5月 問59'},
+  {id:'S40', subjectId:'inheritance', type:'ox', question:'個人が、自己が所有する土地上に建築した店舗用建物を第三者に賃貸していた場合、相続税額の計算上、当該敷地は貸家建付地として評価される。', answer:true, explanation:'土地所有者が自ら所有する賃貸物件の敷地は貸家建付地に該当し、自用地より低く評価される。', source:'2024年1月 問30'},
+  {id:'S41', subjectId:'inheritance', type:'choice', question:'貸家建付地の相続税評価額は、（）の算式により算出される。', choices:['自用地としての価額×(1－借地権割合)','自用地としての価額×(1－借家権割合×賃貸割合)','自用地としての価額×(1－借地権割合×借家権割合×賃貸割合)'], answer:2, explanation:'貸家建付地の評価は自用地価額から借地権割合・借家権割合・賃貸割合の3要素を掛けた分を減じて算出。', source:'2023年9月 問60'}
+];
+
+// ===== State =====
+let state = defaultState(); // Firestoreロード前の初期値
+
+// Quiz session state (not persisted)
+let quizSession = null;
+
+function defaultState() {
+  const subjects = {};
+  SUBJECTS.forEach(s => {
+    subjects[s.id] = {
+      name: s.name, short: s.short,
+      totalMinutes: 0, totalQuestions: 0, totalCorrect: 0,
+      accuracy: 0, understanding: 0, lastStudyDate: null,
+      isWeak: false, priority: 0,
+    };
+  });
+  return {
+    examDate: null,
+    subjects,
+    studyLogs: [],
+    mockExams: [],
+    todayDone: {},
+    quizResults: [],
+    version: 2,
+  };
+}
+
+function loadStateFromLocal() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (!parsed.quizResults) parsed.quizResults = [];
+      return parsed;
+    }
+  } catch(e) {}
+  return null;
+}
+
+function saveState() {
+  // ローカルにもキャッシュ保存
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch(e) {}
+  // Firestoreに保存（ログイン中のみ）
+  const user = fbAuth.currentUser;
+  if (user) fsSaveState(user.uid, state);
+}
+
+function daysAgo(n) {
+  const d = new Date();
+  d.setDate(d.getDate() - n);
+  return d.toISOString().split('T')[0];
+}
+
+function recalcSubjects(st) {
+  SUBJECTS.forEach(s => {
+    const sub = st.subjects[s.id];
+    sub.accuracy = sub.totalQuestions > 0 ? Math.round((sub.totalCorrect / sub.totalQuestions) * 100) : 0;
+    const timeScore = Math.min(sub.totalMinutes / 120, 1) * 40;
+    const accScore = sub.accuracy * 0.6;
+    sub.understanding = Math.round(timeScore + accScore);
+    sub.isWeak = sub.accuracy < 60 && sub.totalQuestions > 0;
+    sub.priority = calcPriority(sub, st);
+  });
+}
+
+function calcPriority(sub, st) {
+  let score = 0;
+  if (sub.totalQuestions > 0) {
+    score += (100 - sub.accuracy) * 2;
+  } else {
+    score += 120;
+  }
+  if (sub.lastStudyDate) {
+    const days = daysBetween(new Date(sub.lastStudyDate), new Date());
+    score += Math.min(days * 10, 70);
+  } else {
+    score += 80;
+  }
+  const avgMinutes = SUBJECTS.reduce((sum, s) => sum + st.subjects[s.id].totalMinutes, 0) / 6;
+  if (sub.totalMinutes < avgMinutes) {
+    score += (avgMinutes - sub.totalMinutes) * 0.5;
+  }
+  if (st.mockExams.length > 0) {
+    const latest = st.mockExams[st.mockExams.length - 1];
+    const sid = SUBJECTS.find(s => st.subjects[s.id] === sub)?.id;
+    if (sid && latest.subjectScores[sid] !== undefined && latest.subjectScores[sid] < 60) {
+      score += 40;
+    }
+  }
+  return Math.round(score);
+}
+
+function daysBetween(a, b) {
+  return Math.floor((b - a) / (1000 * 60 * 60 * 24));
+}
+
+function todayStr() { return new Date().toISOString().split('T')[0]; }
+
+// ===== UI Rendering =====
+
+function render() {
+  recalcSubjects(state);
+  saveState();
+  renderDashboard();
+  renderPlan();
+  renderLogScreen();
+  renderMockScreen();
+  renderWeakness();
+  renderQuizSetup();
+  renderTextbook();
+}
+
+// --- Dashboard ---
+function renderDashboard() {
+  const daysLeftEl = document.getElementById('daysLeft');
+  const examDisplay = document.getElementById('examDateDisplay');
+  if (state.examDate) {
+    const days = daysBetween(new Date(), new Date(state.examDate));
+    daysLeftEl.textContent = Math.max(0, days);
+    daysLeftEl.style.color = days <= 14 ? 'var(--danger)' : days <= 30 ? 'var(--warning)' : 'var(--accent)';
+    examDisplay.textContent = formatDate(state.examDate);
+  } else {
+    daysLeftEl.textContent = '--';
+    examDisplay.textContent = '未設定';
+  }
+
+  const weekStart = new Date();
+  weekStart.setDate(weekStart.getDate() - weekStart.getDay());
+  weekStart.setHours(0,0,0,0);
+  const weekMinutes = state.studyLogs
+    .filter(l => new Date(l.date) >= weekStart)
+    .reduce((s, l) => s + l.minutes, 0);
+  document.getElementById('statWeeklyHours').textContent = weekMinutes;
+  document.getElementById('statStreak').textContent = calcStreak();
+  renderTodos();
+  renderSubjectGrid();
+  renderWeakAlert();
+}
+
+function calcStreak() {
+  const dates = [...new Set(state.studyLogs.map(l => l.date))].sort().reverse();
+  if (dates.length === 0) return 0;
+  let streak = 0;
+  let checkDate = new Date();
+  if (dates[0] !== todayStr()) {
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    if (dates[0] !== yesterday.toISOString().split('T')[0]) return 0;
+    checkDate = yesterday;
+  }
+  for (let i = 0; i < 365; i++) {
+    const d = new Date(checkDate);
+    d.setDate(d.getDate() - i);
+    const ds = d.toISOString().split('T')[0];
+    if (dates.includes(ds)) streak++;
+    else break;
+  }
+  return streak;
+}
+
+function renderTodos() {
+  const container = document.getElementById('todayTodos');
+  const priorities = SUBJECTS
+    .map(s => ({ ...s, priority: state.subjects[s.id].priority }))
+    .sort((a, b) => b.priority - a.priority)
+    .slice(0, 3);
+
+  if (state.studyLogs.length === 0 && state.mockExams.length === 0) {
+    container.innerHTML = `<div class="empty-state" style="padding:16px">
+      <p>まずは学習記録をつけてみましょう！</p>
+      <button class="btn btn-primary btn-sm mt-8" onclick="switchTab('log')">記録する</button>
+    </div>`;
+    return;
+  }
+
+  const todayKey = todayStr();
+  container.innerHTML = priorities.map((s, i) => {
+    const sub = state.subjects[s.id];
+    const doneKey = `${todayKey}_${s.id}_${i}`;
+    const isDone = state.todayDone[doneKey];
+    let task = '';
+    if (sub.totalQuestions === 0) task = `${s.short}の基礎問題を解く`;
+    else if (sub.accuracy < 50) task = `${s.short}の苦手問題を重点復習`;
+    else if (sub.accuracy < 70) task = `${s.short}の過去問を10問解く`;
+    else task = `${s.short}の応用問題に挑戦`;
+
+    return `<div class="todo-item">
+      <button class="todo-check ${isDone ? 'done' : ''}" onclick="toggleTodo('${doneKey}')" aria-label="${isDone ? '完了済み' : '未完了'}"></button>
+      <div class="todo-text">
+        ${task}
+        <span class="todo-subject">${s.name}</span>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function toggleTodo(key) {
+  state.todayDone[key] = !state.todayDone[key];
+  if (state.todayDone[key]) showToast('👏 完了！');
+  render();
+}
+
+function renderSubjectGrid() {
+  const grid = document.getElementById('subjectGrid');
+  grid.innerHTML = SUBJECTS.map(s => {
+    const sub = state.subjects[s.id];
+    const rate = sub.accuracy;
+    const cls = sub.totalQuestions === 0 ? 'medium' : rate >= 70 ? 'strong' : rate >= 60 ? 'medium' : 'weak';
+    const badgeCls = rate >= 70 ? 'badge-success' : rate >= 60 ? 'badge-warning' : 'badge-danger';
+    const badgeText = sub.totalQuestions === 0 ? '未着手' : rate >= 70 ? '順調' : rate >= 60 ? '要練習' : '苦手';
+    return `<div class="subject-card ${cls}">
+      <div class="subject-name">${s.short}</div>
+      <div class="subject-rate">${sub.totalQuestions > 0 ? rate + '%' : '-'}</div>
+      <div class="subject-meta">${sub.totalMinutes}分 / ${sub.totalQuestions}問</div>
+      <span class="badge ${badgeCls}">${badgeText}</span>
+    </div>`;
+  }).join('');
+}
+
+function renderWeakAlert() {
+  const container = document.getElementById('dashWeakAlert');
+  const weakSubjects = SUBJECTS.filter(s => state.subjects[s.id].isWeak);
+  const noStudy = SUBJECTS.filter(s => state.subjects[s.id].totalQuestions === 0);
+  let html = '';
+  if (weakSubjects.length > 0) {
+    html += `<div class="suggestion-card" style="border-color:var(--danger);background:var(--bg)">
+      <div class="suggestion-title" style="color:var(--danger)">⚠️ 苦手分野あり</div>
+      <div class="suggestion-text">${weakSubjects.map(s => s.short).join('、')}の正答率が60%未満です。重点的に復習しましょう。</div>
+    </div>`;
+  }
+  if (noStudy.length > 0) {
+    html += `<div class="suggestion-card">
+      <div class="suggestion-title">💡 まだ学習していない分野</div>
+      <div class="suggestion-text">${noStudy.map(s => s.short).join('、')}はまだ学習記録がありません。早めに着手しましょう。</div>
+    </div>`;
+  }
+  container.innerHTML = html;
+}
+
+// --- Plan ---
+function renderPlan() {
+  if (state.examDate) document.getElementById('examDateInput').value = state.examDate;
+  renderPlanSuggestion();
+  renderWeeklyPlan();
+}
+
+function renderPlanSuggestion() {
+  const container = document.getElementById('planSuggestion');
+  if (!state.examDate) { container.innerHTML = ''; return; }
+  const top = SUBJECTS.map(s => ({ ...s, p: state.subjects[s.id].priority })).sort((a, b) => b.p - a.p)[0];
+  const sub = state.subjects[top.id];
+  let reason = '';
+  if (sub.totalQuestions === 0) reason = 'まだ学習していないため';
+  else if (sub.accuracy < 50) reason = `正答率${sub.accuracy}%で特に弱いため`;
+  else if (!sub.lastStudyDate || daysBetween(new Date(sub.lastStudyDate), new Date()) > 5) reason = '最近学習していないため';
+  else reason = '総合的な優先度が高いため';
+  container.innerHTML = `<div class="suggestion-card">
+    <div class="suggestion-title">🎯 今日の優先分野: ${top.short}</div>
+    <div class="suggestion-text">${reason}、今日は「${top.name}」を優先して学習しましょう。</div>
+  </div>`;
+}
+
+function renderWeeklyPlan() {
+  const container = document.getElementById('weeklyPlan');
+  if (!state.examDate) return;
+  const examDate = new Date(state.examDate);
+  const now = new Date();
+  const totalDays = Math.max(1, daysBetween(now, examDate));
+  const totalWeeks = Math.max(1, Math.ceil(totalDays / 7));
+  const sorted = SUBJECTS.map(s => ({ ...s, p: state.subjects[s.id].priority })).sort((a, b) => b.p - a.p);
+  let html = '';
+  for (let w = 0; w < Math.min(totalWeeks, 8); w++) {
+    const weekStart = new Date(now);
+    weekStart.setDate(weekStart.getDate() + w * 7);
+    const label = w === 0 ? '今週' : w === 1 ? '来週' : `${w + 1}週目`;
+    const weekSubjects = [];
+    const startIdx = (w * 2) % 6;
+    for (let i = 0; i < 3; i++) weekSubjects.push(sorted[(startIdx + i) % 6]);
+    const isLatePhase = totalDays - w * 7 < 21;
+    html += `<div class="week-plan-item">
+      <div class="week-label">${label} (${formatDate(weekStart.toISOString().split('T')[0])}〜)</div>
+      <div class="week-subjects">重点: ${weekSubjects.map(s => s.short).join('、')}</div>
+      <div class="week-target">目標: 1日${isLatePhase ? 60 : 45}分 / 週${isLatePhase ? 30 : 20}問以上</div>
+    </div>`;
+  }
+  container.innerHTML = html;
+}
+
+// --- Study Log ---
+function renderLogScreen() {
+  if (!document.getElementById('logDate').value) document.getElementById('logDate').value = todayStr();
+  const sel = document.getElementById('logSubject');
+  if (sel.options.length <= 1) {
+    sel.innerHTML = SUBJECTS.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+  }
+  renderSubjectSummary();
+  renderRecentLogs();
+}
+
+function renderSubjectSummary() {
+  const container = document.getElementById('subjectSummary');
+  container.innerHTML = SUBJECTS.map(s => {
+    const sub = state.subjects[s.id];
+    const rate = sub.accuracy;
+    const fillClass = rate >= 70 ? 'good' : rate >= 60 ? 'ok' : 'bad';
+    return `<div class="progress-bar-container">
+      <div class="progress-label">
+        <span>${s.short}</span>
+        <span>${sub.totalQuestions > 0 ? rate + '%' : '-'}　${sub.totalMinutes}分 / ${sub.totalQuestions}問</span>
+      </div>
+      <div class="progress-bar">
+        <div class="progress-fill ${fillClass}" style="width:${Math.max(rate, 2)}%"></div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function renderRecentLogs() {
+  const container = document.getElementById('recentLogs');
+  const recent = [...state.studyLogs].reverse().slice(0, 10);
+  if (recent.length === 0) {
+    container.innerHTML = '<div class="empty-state"><p>まだ記録がありません</p></div>';
+    return;
+  }
+  container.innerHTML = recent.map(l => {
+    const subName = SUBJECTS.find(s => s.id === l.subjectId)?.short || l.subjectId;
+    const rate = l.questions > 0 ? Math.round((l.correct / l.questions) * 100) : 0;
+    return `<div class="history-item">
+      <div>
+        <div style="font-weight:600">${subName}</div>
+        <div class="text-sm text-secondary">${formatDate(l.date)}${l.memo ? ' - ' + l.memo : ''}</div>
+      </div>
+      <div style="text-align:right">
+        <div style="font-weight:600">${l.questions > 0 ? rate + '%' : '-'}</div>
+        <div class="text-sm text-secondary">${l.minutes}分 / ${l.questions}問</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// --- Mock Exam ---
+function renderMockScreen() {
+  renderMockChart();
+  renderMockList();
+  renderMockSubjectInputs();
+}
+
+function renderMockSubjectInputs() {
+  const container = document.getElementById('mockSubjectInputs');
+  if (container.children.length > 0) return;
+  container.innerHTML = SUBJECTS.map(s =>
+    `<div class="form-group">
+      <label class="form-label" for="mock_${s.id}">${s.short}</label>
+      <input type="number" class="form-input" id="mock_${s.id}" min="0" max="100" placeholder="0">
+    </div>`
+  ).join('');
+}
+
+function renderMockChart() {
+  const container = document.getElementById('mockScoreChart');
+  if (state.mockExams.length === 0) {
+    container.innerHTML = '<div class="empty-state"><div class="empty-icon">📈</div><p>模試結果を追加すると推移が表示されます</p></div>';
+    return;
+  }
+  const exams = state.mockExams;
+  const w = 300, h = 140, pad = 30;
+  const step = exams.length > 1 ? (w - pad * 2) / (exams.length - 1) : 0;
+  let points = exams.map((e, i) => {
+    const x = pad + i * step;
+    const y = h - pad - ((e.totalScore / 100) * (h - pad * 2));
+    return { x, y, score: e.totalScore };
+  });
+  if (exams.length === 1) points[0].x = w / 2;
+  const pathD = points.map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x},${p.y}`).join(' ');
+  const passLine = h - pad - ((60 / 100) * (h - pad * 2));
+  container.innerHTML = `<svg viewBox="0 0 ${w} ${h}" class="line-chart-svg" role="img" aria-label="模試得点推移">
+    <line x1="${pad}" y1="${passLine}" x2="${w - pad}" y2="${passLine}" stroke="var(--danger)" stroke-width="1" stroke-dasharray="4,4" opacity="0.5"/>
+    <text x="${w - pad + 2}" y="${passLine + 4}" font-size="9" fill="var(--danger)">合格</text>
+    ${[0,25,50,75,100].map(v => {
+      const gy = h - pad - ((v / 100) * (h - pad * 2));
+      return `<text x="${pad - 4}" y="${gy + 3}" font-size="9" fill="var(--text-secondary)" text-anchor="end">${v}</text>`;
+    }).join('')}
+    <path d="${pathD}" fill="none" stroke="var(--accent)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+    ${points.map(p => `
+      <circle cx="${p.x}" cy="${p.y}" r="5" fill="var(--accent)"/>
+      <text x="${p.x}" y="${p.y - 10}" font-size="11" fill="var(--text)" text-anchor="middle" font-weight="600">${p.score}%</text>
+    `).join('')}
+    ${points.map((p, i) => `
+      <text x="${p.x}" y="${h - 5}" font-size="8" fill="var(--text-secondary)" text-anchor="middle">${exams[i].name.slice(0, 6)}</text>
+    `).join('')}
+  </svg>`;
+}
+
+function renderMockList() {
+  const container = document.getElementById('mockList');
+  if (state.mockExams.length === 0) {
+    container.innerHTML = '<div class="empty-state"><div class="empty-icon">📝</div><p>まだ模試結果がありません</p></div>';
+    return;
+  }
+  container.innerHTML = [...state.mockExams].reverse().map(m => {
+    const scoreColor = m.totalScore >= 60 ? 'text-success' : 'text-danger';
+    return `<div class="mock-item">
+      <div class="mock-header">
+        <div><div class="mock-name">${m.name}</div><div class="mock-date">${formatDate(m.date)}</div></div>
+        <div class="mock-score ${scoreColor}">${m.totalScore}%</div>
+      </div>
+      <div class="mock-bars mt-8">
+        ${SUBJECTS.map(s => {
+          const score = m.subjectScores[s.id] || 0;
+          const cls = score >= 70 ? 'good' : score >= 60 ? 'ok' : 'bad';
+          return `<div class="progress-bar-container">
+            <div class="progress-label"><span class="text-sm">${s.short}</span><span class="text-sm">${score}%</span></div>
+            <div class="progress-bar"><div class="progress-fill ${cls}" style="width:${score}%"></div></div>
+          </div>`;
+        }).join('')}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// --- Weakness ---
+function renderWeakness() {
+  renderWeaknessSuggestion();
+  renderWeaknessRateBars();
+  renderWeaknessTimeBars();
+  renderWeaknessDetails();
+}
+
+function renderWeaknessSuggestion() {
+  const container = document.getElementById('weaknessSuggestion');
+  const sorted = SUBJECTS.map(s => ({ ...s, sub: state.subjects[s.id] })).sort((a, b) => b.sub.priority - a.sub.priority);
+  const top = sorted[0];
+  const sub = top.sub;
+  let reason = '';
+  if (sub.totalQuestions === 0) reason = 'まだ学習していない分野です。まずは基礎問題から始めましょう。';
+  else if (sub.accuracy < 50) reason = `正答率${sub.accuracy}%と低く、基礎の理解が不十分です。テキストの読み直しから始めましょう。`;
+  else if (sub.accuracy < 60) reason = `正答率${sub.accuracy}%で合格ラインの60%に届いていません。過去問を重点的に解きましょう。`;
+  else if (sub.lastStudyDate && daysBetween(new Date(sub.lastStudyDate), new Date()) > 7) reason = '最近学習していないため、忘却が進んでいる可能性があります。復習しましょう。';
+  else reason = '他の分野と比べて相対的に弱いポイントです。バランスよく強化しましょう。';
+  container.innerHTML = `<div class="suggestion-card">
+    <div class="suggestion-title">🎯 最優先: ${top.name}</div>
+    <div class="suggestion-text">${reason}</div>
+  </div>`;
+  if (sorted.length > 1) {
+    container.innerHTML += `<div class="suggestion-card" style="border-color:var(--warning)">
+      <div class="suggestion-title" style="color:var(--warning)">📌 次の優先: ${sorted[1].name}</div>
+      <div class="suggestion-text">この分野もバランスよく学習時間を確保しましょう。</div>
+    </div>`;
+  }
+}
+
+function renderWeaknessRateBars() {
+  const container = document.getElementById('weaknessRateBars');
+  container.innerHTML = SUBJECTS.map(s => {
+    const sub = state.subjects[s.id];
+    const rate = sub.accuracy;
+    const cls = rate >= 70 ? 'good' : rate >= 60 ? 'ok' : 'bad';
+    const warn = sub.isWeak ? ' <span class="badge badge-danger">苦手</span>' : '';
+    return `<div class="progress-bar-container">
+      <div class="progress-label"><span>${s.short}${warn}</span><span>${sub.totalQuestions > 0 ? rate + '%' : '未着手'}</span></div>
+      <div class="progress-bar"><div class="progress-fill ${cls}" style="width:${Math.max(sub.totalQuestions > 0 ? rate : 0, 2)}%"></div></div>
+    </div>`;
+  }).join('') + '<div class="text-sm text-secondary mt-8">※ 赤色 = 正答率60%未満（苦手）</div>';
+}
+
+function renderWeaknessTimeBars() {
+  const container = document.getElementById('weaknessTimeBars');
+  const maxMin = Math.max(...SUBJECTS.map(s => state.subjects[s.id].totalMinutes), 1);
+  const avgMin = SUBJECTS.reduce((s, sub) => s + state.subjects[sub.id].totalMinutes, 0) / 6;
+  container.innerHTML = SUBJECTS.map(s => {
+    const sub = state.subjects[s.id];
+    const pct = (sub.totalMinutes / maxMin) * 100;
+    const isLow = sub.totalMinutes < avgMin * 0.5 && avgMin > 0;
+    const warn = isLow ? ' <span class="badge badge-warning">時間不足</span>' : '';
+    return `<div class="progress-bar-container">
+      <div class="progress-label"><span>${s.short}${warn}</span><span>${sub.totalMinutes}分</span></div>
+      <div class="progress-bar"><div class="progress-fill" style="width:${Math.max(pct, 2)}%;background:var(--accent)"></div></div>
+    </div>`;
+  }).join('');
+}
+
+function renderWeaknessDetails() {
+  const container = document.getElementById('weaknessDetails');
+  const sorted = SUBJECTS.map(s => ({ ...s, sub: state.subjects[s.id] })).sort((a, b) => b.sub.priority - a.sub.priority);
+  container.innerHTML = sorted.map(s => {
+    const sub = s.sub;
+    const lastStudy = sub.lastStudyDate ? formatDate(sub.lastStudyDate) : '未学習';
+    const rate = sub.totalQuestions > 0 ? `${sub.accuracy}%` : '-';
+    return `<div class="history-item" style="flex-wrap:wrap">
+      <div style="flex:1;min-width:120px">
+        <div style="font-weight:600">${s.name}</div>
+        <div class="text-sm text-secondary">最終学習: ${lastStudy}</div>
+      </div>
+      <div style="text-align:right">
+        <div style="font-weight:600;${sub.isWeak ? 'color:var(--danger)' : ''}">${rate}</div>
+        <div class="text-sm text-secondary">${sub.totalMinutes}分 / ${sub.totalQuestions}問</div>
+        <div class="text-sm text-secondary">理解度: ${sub.understanding}%</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ===== Quiz System =====
+
+let quizSelectedSubjects = new Set(SUBJECTS.map(s => s.id));
+let quizSelectedCount = 5;
+
+function renderQuizSetup() {
+  // Subject chips
+  const chipsContainer = document.getElementById('quizSubjectChips');
+  chipsContainer.innerHTML = SUBJECTS.map(s => {
+    const active = quizSelectedSubjects.has(s.id) ? ' active' : '';
+    return `<button class="quiz-chip${active}" data-subject="${s.id}">${s.short}</button>`;
+  }).join('');
+
+  // Count select
+  document.querySelectorAll('.quiz-count-btn').forEach(btn => {
+    btn.classList.toggle('active', parseInt(btn.dataset.count) === quizSelectedCount);
+  });
+
+  // History
+  renderQuizHistory();
+}
+
+function renderQuizHistory() {
+  const container = document.getElementById('quizHistory');
+  if (!state.quizResults || state.quizResults.length === 0) {
+    container.innerHTML = '<div class="empty-state" style="padding:16px"><p>まだクイズの記録がありません</p></div>';
+    return;
+  }
+  const recent = [...state.quizResults].reverse().slice(0, 5);
+  container.innerHTML = recent.map(r => {
+    const rate = Math.round((r.correct / r.total) * 100);
+    const color = rate >= 70 ? 'text-success' : rate >= 60 ? 'text-warning' : 'text-danger';
+    return `<div class="history-item">
+      <div>
+        <div style="font-weight:600">${r.total}問</div>
+        <div class="text-sm text-secondary">${formatDate(r.date)}</div>
+      </div>
+      <div class="text-sm text-secondary">${r.correct}/${r.total}</div>
+      <div style="font-weight:700" class="${color}">${rate}%</div>
+    </div>`;
+  }).join('');
+}
+
+function startQuiz() {
+  const subjectIds = [...quizSelectedSubjects];
+  if (subjectIds.length === 0) { showToast('分野を1つ以上選んでください'); return; }
+
+  let questions = QUESTION_BANK.filter(q => subjectIds.includes(q.subjectId));
+  if (questions.length === 0) { showToast('選択した分野に問題がありません'); return; }
+
+  // Shuffle
+  questions = shuffleArray([...questions]);
+
+  // Limit count
+  const count = quizSelectedCount === 0 ? questions.length : Math.min(quizSelectedCount, questions.length);
+  questions = questions.slice(0, count);
+
+  quizSession = {
+    questions,
+    currentIndex: 0,
+    answers: [],
+    startTime: Date.now(),
+  };
+
+  document.getElementById('quizSetup').classList.add('hidden');
+  document.getElementById('quizActive').classList.remove('hidden');
+  document.getElementById('quizResult').classList.add('hidden');
+  renderQuizQuestion();
+}
+
+function renderQuizQuestion() {
+  if (!quizSession) return;
+  const q = quizSession.questions[quizSession.currentIndex];
+  const total = quizSession.questions.length;
+  const idx = quizSession.currentIndex;
+
+  // Progress label
+  document.getElementById('quizProgressLabel').textContent = `問題 ${idx + 1} / ${total}`;
+
+  // Progress bar
+  const progressBar = document.getElementById('quizProgressBar');
+  progressBar.innerHTML = quizSession.questions.map((_, i) => {
+    let cls = '';
+    if (i < idx) {
+      cls = quizSession.answers[i]?.isCorrect ? 'correct' : 'wrong';
+    } else if (i === idx) {
+      cls = 'current';
+    }
+    return `<div class="quiz-progress-dot ${cls}"></div>`;
+  }).join('');
+
+  // Subject badge
+  const subjectName = SUBJECTS.find(s => s.id === q.subjectId)?.name || '';
+  document.getElementById('quizSubjectBadge').innerHTML =
+    `<span class="badge badge-warning">${subjectName}</span>`;
+
+  // Question text
+  document.getElementById('quizQuestionText').textContent = q.question;
+
+  // Options
+  const optionsContainer = document.getElementById('quizOptions');
+  if (q.type === 'ox') {
+    optionsContainer.innerHTML = `
+      <button class="quiz-option" data-answer="true" onclick="answerQuiz(true)">⭕ 正しい（適切）</button>
+      <button class="quiz-option" data-answer="false" onclick="answerQuiz(false)">❌ 誤り（不適切）</button>`;
+  } else {
+    optionsContainer.innerHTML = q.choices.map((c, i) =>
+      `<button class="quiz-option" data-answer="${i}" onclick="answerQuiz(${i})">${i + 1}. ${c}</button>`
+    ).join('');
+  }
+
+  // Hide explanation and next button
+  document.getElementById('quizExplanation').classList.add('hidden');
+  document.getElementById('quizNext').classList.add('hidden');
+}
+
+function playAnswerSound(isCorrect) {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    if (isCorrect) {
+      // 正解：明るい上昇音（ド→ミ→ソ）
+      [[523, 0], [659, 0.12], [784, 0.24]].forEach(([freq, delay]) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain); gain.connect(ctx.destination);
+        osc.type = 'sine';
+        osc.frequency.value = freq;
+        const t = ctx.currentTime + delay;
+        gain.gain.setValueAtTime(0.3, t);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + 0.18);
+        osc.start(t); osc.stop(t + 0.18);
+      });
+    } else {
+      // 不正解：低い下降音（ラ→ファ）
+      [[440, 0], [349, 0.18]].forEach(([freq, delay]) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain); gain.connect(ctx.destination);
+        osc.type = 'sawtooth';
+        osc.frequency.value = freq;
+        const t = ctx.currentTime + delay;
+        gain.gain.setValueAtTime(0.2, t);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + 0.22);
+        osc.start(t); osc.stop(t + 0.22);
+      });
+    }
+  } catch(e) {}
+}
+
+function answerQuiz(userAnswer) {
+  if (!quizSession) return;
+  const q = quizSession.questions[quizSession.currentIndex];
+  const isCorrect = (q.type === 'ox')
+    ? userAnswer === q.answer
+    : userAnswer === q.answer;
+
+  playAnswerSound(isCorrect);
+  quizSession.answers.push({ questionId: q.id, userAnswer, isCorrect });
+
+  // Disable all options and highlight correct/wrong
+  const options = document.querySelectorAll('#quizOptions .quiz-option');
+  options.forEach(btn => {
+    btn.disabled = true;
+    if (q.type === 'ox') {
+      const val = btn.dataset.answer === 'true';
+      if (val === q.answer) btn.classList.add('correct');
+      if (val === userAnswer && !isCorrect) btn.classList.add('wrong');
+    } else {
+      const val = parseInt(btn.dataset.answer);
+      if (val === q.answer) btn.classList.add('correct');
+      if (val === userAnswer && !isCorrect) btn.classList.add('wrong');
+    }
+  });
+
+  // Show explanation
+  const explanationEl = document.getElementById('quizExplanation');
+  explanationEl.classList.remove('hidden');
+  explanationEl.innerHTML = `
+    <div class="quiz-explanation">
+      <div class="quiz-explanation-title">${isCorrect ? '✅ 正解！' : '❌ 不正解'}</div>
+      <div>${q.explanation}</div>
+      ${q.source ? `<div class="quiz-source">出典: ${q.source}</div>` : ''}
+    </div>`;
+
+  // Show next button
+  const nextBtn = document.getElementById('quizNext');
+  nextBtn.classList.remove('hidden');
+  if (quizSession.currentIndex >= quizSession.questions.length - 1) {
+    nextBtn.textContent = '結果を見る';
+  } else {
+    nextBtn.textContent = '次の問題 →';
+  }
+
+  // Update progress dot
+  const dots = document.querySelectorAll('.quiz-progress-dot');
+  if (dots[quizSession.currentIndex]) {
+    dots[quizSession.currentIndex].className = `quiz-progress-dot ${isCorrect ? 'correct' : 'wrong'}`;
+  }
+}
+
+function nextQuizQuestion() {
+  if (!quizSession) return;
+  quizSession.currentIndex++;
+  if (quizSession.currentIndex >= quizSession.questions.length) {
+    finishQuiz();
+  } else {
+    renderQuizQuestion();
+    // Scroll to top of quiz card
+    document.getElementById('quizActive').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+}
+
+function finishQuiz() {
+  const correct = quizSession.answers.filter(a => a.isCorrect).length;
+  const total = quizSession.questions.length;
+  const rate = Math.round((correct / total) * 100);
+
+  // Save result
+  const result = {
+    date: todayStr(),
+    total, correct, rate,
+    subjects: [...new Set(quizSession.questions.map(q => q.subjectId))],
+    answers: quizSession.answers.map(a => ({ questionId: a.questionId, isCorrect: a.isCorrect })),
+  };
+  state.quizResults.push(result);
+
+  // Also record as study log per subject
+  const bySubject = {};
+  quizSession.questions.forEach((q, i) => {
+    if (!bySubject[q.subjectId]) bySubject[q.subjectId] = { questions: 0, correct: 0 };
+    bySubject[q.subjectId].questions++;
+    if (quizSession.answers[i].isCorrect) bySubject[q.subjectId].correct++;
+  });
+  const elapsedMinutes = Math.max(1, Math.round((Date.now() - quizSession.startTime) / 60000));
+  const subjectIds = Object.keys(bySubject);
+  const minutesPerSubject = Math.max(1, Math.round(elapsedMinutes / subjectIds.length));
+
+  subjectIds.forEach(sid => {
+    const d = bySubject[sid];
+    state.studyLogs.push({
+      date: todayStr(), subjectId: sid,
+      minutes: minutesPerSubject, questions: d.questions, correct: d.correct,
+      memo: `過去問クイズ (${d.correct}/${d.questions}正解)`,
+    });
+    const sub = state.subjects[sid];
+    sub.totalMinutes += minutesPerSubject;
+    sub.totalQuestions += d.questions;
+    sub.totalCorrect += d.correct;
+    if (!sub.lastStudyDate || todayStr() > sub.lastStudyDate) sub.lastStudyDate = todayStr();
+  });
+
+  saveState();
+
+  // Show result screen
+  document.getElementById('quizActive').classList.add('hidden');
+  document.getElementById('quizResult').classList.remove('hidden');
+
+  const scoreColor = rate >= 70 ? 'text-success' : rate >= 60 ? 'text-warning' : 'text-danger';
+  document.getElementById('quizResultScore').className = `quiz-result-score ${scoreColor}`;
+  document.getElementById('quizResultScore').textContent = `${rate}%`;
+  document.getElementById('quizResultDetail').innerHTML =
+    `<div style="font-size:16px">${total}問中 <strong>${correct}問</strong> 正解</div>
+     <div class="text-sm text-secondary mt-8">所要時間: ${elapsedMinutes}分</div>`;
+
+  // By subject
+  const bySubjectContainer = document.getElementById('quizResultBySubject');
+  bySubjectContainer.innerHTML = subjectIds.map(sid => {
+    const d = bySubject[sid];
+    const sRate = Math.round((d.correct / d.questions) * 100);
+    const sName = SUBJECTS.find(s => s.id === sid)?.short || sid;
+    const cls = sRate >= 70 ? 'good' : sRate >= 60 ? 'ok' : 'bad';
+    return `<div class="progress-bar-container">
+      <div class="progress-label"><span>${sName}</span><span>${d.correct}/${d.questions} (${sRate}%)</span></div>
+      <div class="progress-bar"><div class="progress-fill ${cls}" style="width:${sRate}%"></div></div>
+    </div>`;
+  }).join('');
+
+  // Question list
+  const listContainer = document.getElementById('quizResultList');
+  listContainer.innerHTML = quizSession.questions.map((q, i) => {
+    const a = quizSession.answers[i];
+    const icon = a.isCorrect ? '✅' : '❌';
+    const subShort = SUBJECTS.find(s => s.id === q.subjectId)?.short || '';
+    return `<div class="history-item">
+      <div style="flex:1">
+        <div class="text-sm">${icon} ${q.question.slice(0, 50)}${q.question.length > 50 ? '...' : ''}</div>
+        <div class="text-sm text-secondary">${subShort}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function quitQuiz() {
+  quizSession = null;
+  document.getElementById('quizActive').classList.add('hidden');
+  document.getElementById('quizResult').classList.add('hidden');
+  document.getElementById('quizSetup').classList.remove('hidden');
+}
+
+function shuffleArray(arr) {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
+// ===== Event Handlers =====
+
+// Tab switching
+// ===== Textbook =====
+const TEXTBOOK = [
+  {
+    id:'life', label:'ライフプランニング', chapters:[
+      { title:'🏛 FPと関連法規', body:`
+<h4>FPができること・できないこと</h4>
+<table><tr><th>法律</th><th>禁止される行為（無資格）</th><th>FPでも可能</th></tr>
+<tr><td>税理士法</td><td>個別・具体的な税務相談、確定申告書の有償作成</td><td>一般的な税制の説明</td></tr>
+<tr><td>弁護士法</td><td>個別・具体的な法律相談、法律事務の有償取扱い</td><td>一般的な法律の説明</td></tr>
+<tr><td>保険業法</td><td>保険の募集・勧誘（登録なし）</td><td>一般的な商品説明</td></tr>
+<tr><td>金融商品取引法</td><td>有償の投資顧問・代理業（登録なし）</td><td>一般的な金融商品の説明</td></tr>
+</table>
+<p><span class="tb-point">ポイント</span> 「一般的・抽象的な説明」はOK。「個別・具体的」かつ「有償」はNG。ただし税理士法は<strong>無償でも</strong>反復継続はNG。</p>
+<p>任意後見契約の受任者になること自体は特別な資格不要。</p>
+      `},
+      { title:'📐 6つの係数', body:`
+<h4>係数の使い方まとめ</h4>
+<table><tr><th>係数名</th><th>使う場面</th><th>例</th></tr>
+<tr><td>終価係数</td><td>元本→将来の元利合計</td><td>100万円を5年運用すると？</td></tr>
+<tr><td>現価係数</td><td>将来の目標額→今必要な元本</td><td>5年後に100万円欲しい。今いくら必要？</td></tr>
+<tr><td>年金終価係数</td><td>毎年の積立額→将来の合計</td><td>毎年10万円積立、5年後は？</td></tr>
+<tr><td>減債基金係数</td><td>将来の目標額→毎年の積立額</td><td>5年後に100万円。毎年いくら積立？</td></tr>
+<tr><td>年金現価係数</td><td>毎年の受取額→必要な元本</td><td>毎年10万円受取り5年間。今いくら必要？</td></tr>
+<tr><td>資本回収係数</td><td>元本→毎年の受取額</td><td>100万円を5年で均等受取。毎年いくら？</td></tr>
+</table>
+<div class="tb-box">💡 <strong>覚え方：</strong>「積立→将来」＝年金終価、「将来→積立」＝減債基金、「受取←元本」＝資本回収、「元本←受取」＝年金現価</div>
+      `},
+      { title:'🏥 社会保険（健康保険・雇用保険・労災）', body:`
+<h4>健康保険</h4>
+<ul>
+<li>傷病手当金：直近12カ月の標準報酬月額の平均÷30×<strong>2/3</strong>、支給開始から通算<strong>1年6カ月</strong></li>
+<li>任意継続被保険者：退職前に<strong>2カ月以上</strong>の加入が必要、最長<strong>2年間</strong></li>
+</ul>
+<h4>雇用保険（基本手当）</h4>
+<ul>
+<li>受給要件（一般）：離職前<strong>2年間</strong>に被保険者期間<strong>12カ月</strong>以上</li>
+<li>受給要件（倒産・解雇）：離職前<strong>1年間</strong>に<strong>6カ月</strong>以上</li>
+<li>自己都合退職：待期7日後に給付制限あり（原則<strong>2カ月</strong>、5年間で2回超は3カ月）</li>
+</ul>
+<h4>労災保険</h4>
+<ul>
+<li>保険料は<strong>事業主が全額負担</strong>（労使折半ではない）</li>
+<li>アルバイト・パートも<strong>すべての労働者</strong>が対象（労働時間要件なし）</li>
+</ul>
+<p><span class="tb-point">ポイント</span> 雇用保険の20時間要件は「被保険者」になるための条件。労災保険は無条件で全員適用。</p>
+      `},
+      { title:'🏦 公的年金（国民年金・厚生年金）', body:`
+<h4>被保険者の種類</h4>
+<table><tr><th>種別</th><th>対象</th><th>年齢</th></tr>
+<tr><td>第1号</td><td>自営業者・学生など</td><td>20歳以上<strong>60歳未満</strong></td></tr>
+<tr><td>第2号</td><td>会社員・公務員</td><td>65歳未満（在職中は継続）</td></tr>
+<tr><td>第3号</td><td>第2号の被扶養配偶者</td><td>20歳以上60歳未満</td></tr>
+</table>
+<p><span class="tb-ng">注意</span> 第1号は65歳未満ではなく<strong>60歳未満</strong>。よく誤答がある。</p>
+<h4>老齢基礎年金</h4>
+<ul>
+<li>受給資格期間：<strong>10年以上</strong></li>
+<li>満額受給：保険料を<strong>40年</strong>納付</li>
+<li>繰上げ受給：1カ月あたり<strong>0.4%</strong>減額（最大60カ月＝<strong>24%</strong>減）</li>
+<li>繰下げ受給：1カ月あたり<strong>0.7%</strong>増額（最大84カ月＝<strong>58.8%</strong>増）</li>
+</ul>
+<h4>加給年金（厚生年金）</h4>
+<ul>
+<li>厚生年金被保険者期間<strong>20年以上</strong>が必要</li>
+<li>受給権取得時に<strong>65歳未満</strong>の配偶者がいる場合に加算</li>
+</ul>
+<h4>遺族年金</h4>
+<table><tr><th></th><th>遺族基礎年金</th><th>遺族厚生年金</th></tr>
+<tr><td>受給者</td><td>子のある配偶者・子</td><td>配偶者・子・父母・孫・祖父母</td></tr>
+<tr><td>「子」の定義</td><td colspan="2">18歳到達年度末まで（障害は20歳未満）</td></tr>
+</table>
+<p><span class="tb-point">ポイント</span> 遺族厚生年金に<strong>兄弟姉妹は含まれない</strong>。</p>
+      `},
+      { title:'💰 企業年金・個人年金（iDeCo等）', body:`
+<h4>iDeCo（個人型確定拠出年金）の拠出限度額</h4>
+<table><tr><th>対象者</th><th>月額上限</th><th>年額上限</th></tr>
+<tr><td>自営業者（第1号）</td><td>68,000円</td><td>816,000円</td></tr>
+<tr><td>会社員（企業年金なし）</td><td>23,000円</td><td>276,000円</td></tr>
+<tr><td>会社員（企業年金あり）</td><td>12,000円</td><td>144,000円</td></tr>
+<tr><td>公務員</td><td>20,000円</td><td>240,000円</td></tr>
+<tr><td>第3号被保険者</td><td>23,000円</td><td>276,000円</td></tr>
+</table>
+<p><span class="tb-ng">注意</span> 公務員は144,000円ではなく<strong>240,000円</strong>。</p>
+<h4>iDeCoの受給要件</h4>
+<ul>
+<li>60歳から受給するには通算加入者等期間が<strong>10年以上</strong>必要</li>
+<li>10年未満の場合は受給開始が65歳まで延長される</li>
+</ul>
+<h4>国民年金基金</h4>
+<ul>
+<li>第1号被保険者が対象</li>
+<li>給付は<strong>老齢年金と遺族一時金</strong>のみ（障害給付はなし）</li>
+<li>一度加入すると<strong>任意脱退不可</strong></li>
+</ul>
+<h4>小規模企業共済</h4>
+<ul>
+<li>掛金：月額<strong>1,000円〜70,000円</strong>（500円単位）</li>
+<li>掛金全額が所得控除（小規模企業共済等掛金控除）の対象</li>
+</ul>
+      `},
+      { title:'🏠 住宅ローン・ライフプランニング', body:`
+<h4>返済方式の比較</h4>
+<table><tr><th></th><th>元利均等返済</th><th>元金均等返済</th></tr>
+<tr><td>毎月返済額</td><td>一定</td><td>徐々に減少</td></tr>
+<tr><td>総返済額</td><td>多い</td><td>少ない</td></tr>
+<tr><td>当初の返済負担</td><td>軽い</td><td>重い</td></tr>
+</table>
+<h4>繰上げ返済の比較</h4>
+<ul>
+<li><strong>期間短縮型</strong>：返済額は変えず期間を短縮→利息軽減効果が<strong>大きい</strong></li>
+<li><strong>返済額軽減型</strong>：期間は変えず毎月の返済額を減らす→利息軽減効果は小さい</li>
+</ul>
+<h4>フラット35（買取型）</h4>
+<ul>
+<li>融資限度額：<strong>8,000万円</strong>以内</li>
+<li>金利タイプ：<strong>固定金利</strong></li>
+<li>適用金利：<strong>融資実行時</strong>の金利（申込時ではない）</li>
+</ul>
+<h4>総量規制（貸金業法）</h4>
+<ul>
+<li>個人の借入合計が年収の<strong>1/3</strong>を超えてはならない</li>
+<li>住宅ローン・銀行系ローンは対象外</li>
+</ul>
+<h4>可処分所得</h4>
+<div class="tb-box">可処分所得 ＝ 年収 − 所得税・住民税 − 社会保険料<br>※生命保険料は<strong>含めない</strong></div>
+      `}
+    ]
+  },
+  {
+    id:'risk', label:'リスク管理', chapters:[
+      { title:'🛡 保険制度の基礎', body:`
+<h4>ソルベンシーマージン比率</h4>
+<ul>
+<li>保険会社の健全性を示す指標</li>
+<li><strong>200%</strong>を下回ると行政が早期是正措置を発動</li>
+</ul>
+<h4>保険契約者保護機構</h4>
+<ul>
+<li>生命保険：責任準備金の<strong>90%</strong>まで補償</li>
+<li>損害保険：保険金の<strong>80%</strong>（自動車・地震・義務保険は100%）まで補償</li>
+</ul>
+<h4>少額短期保険業者</h4>
+<ul>
+<li>保険金額の上限：生命保険は<strong>300万円</strong>、損害保険は<strong>1,000万円</strong></li>
+<li>保険期間：生命・医療は<strong>1年</strong>以内、損害は<strong>2年</strong>以内</li>
+</ul>
+      `},
+      { title:'🧬 生命保険の基礎', body:`
+<h4>保険料の構成</h4>
+<div class="tb-box">純保険料（保険金支払い用）＋付加保険料（会社経費等）＝営業保険料</div>
+<h4>3利源</h4>
+<ul>
+<li><strong>死差益</strong>：予定死亡率 > 実際の死亡率</li>
+<li><strong>利差益</strong>：予定利率 < 実際の運用利回り</li>
+<li><strong>費差益</strong>：予定事業費率 > 実際の事業費</li>
+</ul>
+<h4>予定利率と保険料の関係</h4>
+<p>予定利率が<strong>高い</strong>ほど保険料は<strong>安く</strong>なる。</p>
+<h4>主な保険の種類</h4>
+<table><tr><th>種類</th><th>特徴</th></tr>
+<tr><td>定期保険</td><td>一定期間の死亡保障。満期保険金なし（掛け捨て）</td></tr>
+<tr><td>終身保険</td><td>一生涯の死亡保障。解約返戻金あり</td></tr>
+<tr><td>養老保険</td><td>死亡保険金＝満期保険金。貯蓄性が高い</td></tr>
+<tr><td>個人年金保険</td><td>生存時に年金受取。死亡時は既払保険料相当額</td></tr>
+</table>
+<h4>契約変更</h4>
+<ul>
+<li><strong>払済保険</strong>：保険料払込を中止し、同じ期間で保障額の小さい保険に変更（期間変わらず）</li>
+<li><strong>延長（定期）保険</strong>：保険料払込を中止し、同じ保険金額で期間の短い定期保険に変更（保険金額変わらず）</li>
+</ul>
+      `},
+      { title:'🚗 損害保険の基礎', body:`
+<h4>自動車保険</h4>
+<table><tr><th></th><th>自賠責保険</th><th>任意保険</th></tr>
+<tr><td>加入義務</td><td>あり（強制）</td><td>なし</td></tr>
+<tr><td>対象</td><td>対人のみ</td><td>対人・対物・車両など</td></tr>
+<tr><td>死亡保険金上限</td><td><strong>3,000万円</strong></td><td>契約による</td></tr>
+<tr><td>後遺障害上限</td><td><strong>4,000万円</strong></td><td>契約による</td></tr>
+</table>
+<h4>火災保険・地震保険</h4>
+<ul>
+<li>地震保険は<strong>火災保険に付帯</strong>して加入（単独加入不可）</li>
+<li>地震保険の保険金額：火災保険の保険金額の<strong>30〜50%</strong></li>
+<li>地震保険の補償上限：建物<strong>5,000万円</strong>、家財<strong>1,000万円</strong></li>
+<li>損害区分：<strong>全損・大半損・小半損・一部損</strong>の4段階</li>
+</ul>
+<h4>地震保険料控除</h4>
+<ul>
+<li>所得税：最高<strong>50,000円</strong>控除</li>
+<li>住民税：最高<strong>25,000円</strong>控除</li>
+</ul>
+      `},
+      { title:'🏥 第三分野の保険', body:`
+<h4>医療保険・がん保険</h4>
+<ul>
+<li>先進医療特約：給付金は<strong>療養を受けた時点</strong>で厚生労働大臣が承認した先進医療が対象</li>
+<li>がん保険の免責期間：責任開始から<strong>90日間</strong>（3カ月）</li>
+<li>がん入院特約：入院日数の<strong>制限なし</strong>（一般の医療保険は60・120日など制限あり）</li>
+</ul>
+<h4>介護保険（民間）</h4>
+<ul>
+<li>公的介護保険と民間介護保険は重複して加入・受取り可能</li>
+<li>一時金型・年金型がある</li>
+</ul>
+      `},
+      { title:'🏢 法人向け保険の活用', body:`
+<h4>法人契約における経理処理のポイント</h4>
+<table><tr><th>保険種類</th><th>保険料の経理処理</th></tr>
+<tr><td>定期保険（低解約返戻金型）</td><td>最高解約返戻率に応じて一部資産計上・残りは損金</td></tr>
+<tr><td>終身保険（法人契約）</td><td>保険料は全額資産計上（損金不可）</td></tr>
+<tr><td>養老保険（福利厚生目的）</td><td>保険料の1/2が損金、1/2が資産計上</td></tr>
+</table>
+<h4>事業関連の保険</h4>
+<ul>
+<li><strong>業務停止保険</strong>（企業費用・利益保険）：火災等で操業停止した際の利益損失を補償</li>
+<li><strong>施設所有者賠償責任保険</strong>：施設の欠陥や管理の不備で第三者に損害を与えた場合</li>
+<li><strong>生産物賠償責任保険（PL保険）</strong>：製品の欠陥で第三者に損害を与えた場合</li>
+</ul>
+      `}
+    ]
+  },
+  {
+    id:'finance', label:'金融資産運用', chapters:[
+      { title:'📊 経済・金融の基礎知識', body:`
+<h4>主な経済指標</h4>
+<ul>
+<li><strong>GDP</strong>：国内で一定期間に生産された付加価値の合計</li>
+<li><strong>消費者物価指数（CPI）</strong>：家計の消費財・サービスの価格変動を示す</li>
+<li><strong>景気動向指数（CI/DI）</strong>：先行・一致・遅行の3系列がある</li>
+</ul>
+<h4>金融政策</h4>
+<ul>
+<li>日本銀行が政策金利（無担保コール翌日物）を操作</li>
+<li>金利上昇→債券価格<strong>下落</strong>（逆の関係）</li>
+<li>円高→輸出企業の業績は<strong>不利</strong>、輸入企業は有利</li>
+</ul>
+      `},
+      { title:'🏦 貯蓄型金融商品（預金・債券）', body:`
+<h4>預金の種類と特徴</h4>
+<table><tr><th>種類</th><th>特徴</th></tr>
+<tr><td>普通預金</td><td>流動性高い、低金利</td></tr>
+<tr><td>定期預金</td><td>一定期間の拘束、普通預金より高金利</td></tr>
+<tr><td>貯蓄預金</td><td>普通預金より高金利、残高一定以上で優遇</td></tr>
+<tr><td>外貨預金</td><td>為替リスクあり、預金保険の対象外</td></tr>
+</table>
+<h4>預金保険制度</h4>
+<ul>
+<li>保護上限：1金融機関につき預金者1人あたり元本<strong>1,000万円</strong>＋利息</li>
+<li>決済用預金（無利息・要求払い・決済機能）は<strong>全額保護</strong></li>
+<li>外貨預金・譲渡性預金は<strong>対象外</strong></li>
+</ul>
+<h4>債券の基礎</h4>
+<ul>
+<li>発行価格・利率・償還期限が決まっている</li>
+<li>金利上昇→債券価格<strong>下落</strong>、金利低下→債券価格<strong>上昇</strong></li>
+<li>残存期間が長いほど価格変動が<strong>大きい</strong></li>
+</ul>
+<h4>最終利回りの計算</h4>
+<div class="tb-box">最終利回り(%) ＝ (表面利率 ＋ (額面－購入価格)÷残存年数) ÷ 購入価格 × 100</div>
+      `},
+      { title:'📈 投資型金融商品（株式・投資信託）', body:`
+<h4>株式投資の指標</h4>
+<table><tr><th>指標</th><th>計算式</th><th>低いほど</th></tr>
+<tr><td>PER（株価収益率）</td><td>株価÷EPS（1株純利益）</td><td>割安の可能性</td></tr>
+<tr><td>PBR（株価純資産倍率）</td><td>株価÷BPS（1株純資産）</td><td>割安の可能性</td></tr>
+<tr><td>ROE（自己資本利益率）</td><td>純利益÷自己資本×100</td><td>収益性が低い</td></tr>
+</table>
+<p>配当利回り(%) ＝ 1株配当金 ÷ 株価 × 100</p>
+<h4>投資信託の基礎</h4>
+<ul>
+<li><strong>追加型（オープン型）</strong>：いつでも購入・解約可能</li>
+<li><strong>クローズド型</strong>：購入・解約時期が限定される</li>
+<li>基準価額 ＝ 純資産総額 ÷ 受益権総口数</li>
+</ul>
+<h4>投資信託の費用</h4>
+<table><tr><th>費用</th><th>タイミング</th></tr>
+<tr><td>販売手数料</td><td>購入時（ノーロードは無料）</td></tr>
+<tr><td>信託報酬（運用管理費用）</td><td>保有中（日々差し引かれる）</td></tr>
+<tr><td>信託財産留保額</td><td>解約時</td></tr>
+</table>
+<h4>ポートフォリオ理論</h4>
+<ul>
+<li><strong>分散投資</strong>：相関係数が低い（または負の）資産を組み合わせると<strong>リスクを低減</strong>できる</li>
+<li>相関係数が<strong>−1</strong>のとき、リスク低減効果が最大</li>
+</ul>
+      `},
+      { title:'💴 金融商品の税制', body:`
+<h4>利子・配当・譲渡益の税率</h4>
+<table><tr><th>所得の種類</th><th>税率（所得税＋住民税）</th></tr>
+<tr><td>預金利子</td><td>20.315%（源泉分離課税）</td></tr>
+<tr><td>上場株式等の配当</td><td>20.315%（申告分離or総合課税を選択可）</td></tr>
+<tr><td>上場株式等の譲渡益</td><td>20.315%（申告分離課税）</td></tr>
+</table>
+<h4>NISA（少額投資非課税制度）</h4>
+<ul>
+<li>年間投資上限：<strong>360万円</strong>（成長投資枠240万円＋つみたて投資枠120万円）</li>
+<li>生涯非課税限度額：<strong>1,800万円</strong></li>
+<li>非課税期間：<strong>無期限</strong></li>
+<li>対象：18歳以上の居住者</li>
+</ul>
+<h4>損益通算</h4>
+<ul>
+<li>上場株式等の譲渡損失は上場株式等の配当所得と通算可能</li>
+<li>不動産所得・給与所得等との通算は<strong>不可</strong></li>
+<li>繰越控除は<strong>最長3年間</strong></li>
+</ul>
+      `}
+    ]
+  },
+  {
+    id:'tax', label:'タックスプランニング', chapters:[
+      { title:'📋 所得税の仕組み', body:`
+<h4>所得税の計算の流れ</h4>
+<div class="tb-box">
+① 各種所得の計算<br>
+② 損益通算<br>
+③ 所得控除の差し引き → <strong>課税所得金額</strong><br>
+④ 税率を掛ける → <strong>算出税額</strong><br>
+⑤ 税額控除の差し引き → <strong>納付税額</strong>
+</div>
+<h4>所得税の税率（超過累進課税）</h4>
+<table><tr><th>課税所得</th><th>税率</th></tr>
+<tr><td>195万円以下</td><td>5%</td></tr>
+<tr><td>195万円超〜330万円以下</td><td>10%</td></tr>
+<tr><td>330万円超〜695万円以下</td><td>20%</td></tr>
+<tr><td>695万円超〜900万円以下</td><td>23%</td></tr>
+<tr><td>900万円超〜1,800万円以下</td><td>33%</td></tr>
+<tr><td>1,800万円超〜4,000万円以下</td><td>40%</td></tr>
+<tr><td>4,000万円超</td><td>45%</td></tr>
+</table>
+      `},
+      { title:'💼 10種類の所得', body:`
+<table><tr><th>所得の種類</th><th>計算方法（概要）</th></tr>
+<tr><td>給与所得</td><td>収入金額 − 給与所得控除額</td></tr>
+<tr><td>事業所得</td><td>収入金額 − 必要経費</td></tr>
+<tr><td>不動産所得</td><td>収入金額 − 必要経費（※土地取得借入金利子は損益通算不可）</td></tr>
+<tr><td>利子所得</td><td>収入金額がそのまま所得（原則源泉分離）</td></tr>
+<tr><td>配当所得</td><td>収入金額 − 株式取得のための借入金利子</td></tr>
+<tr><td>譲渡所得</td><td>収入 − 取得費 − 譲渡費用 − 特別控除（最大50万円）</td></tr>
+<tr><td>一時所得</td><td>収入 − 支出 − 50万円特別控除。課税は<strong>1/2</strong>が対象</td></tr>
+<tr><td>退職所得</td><td>（収入 − 退職所得控除額）× 1/2</td></tr>
+<tr><td>山林所得</td><td>収入 − 必要経費 − 特別控除（最大50万円）</td></tr>
+<tr><td>雑所得</td><td>公的年金等控除後の年金収入＋その他（収入−必要経費）</td></tr>
+</table>
+<p><span class="tb-point">ポイント</span> 生命保険の満期保険金（一時所得）→ 1/2課税に注意。</p>
+      `},
+      { title:'🔖 主な所得控除', body:`
+<table><tr><th>控除の種類</th><th>控除額のポイント</th></tr>
+<tr><td>基礎控除</td><td>合計所得2,400万円以下は<strong>48万円</strong>、超えると段階的に減少</td></tr>
+<tr><td>配偶者控除</td><td>配偶者の合計所得<strong>48万円以下</strong>（給与収入103万円以下）</td></tr>
+<tr><td>扶養控除</td><td>一般扶養：38万円、特定扶養（19〜22歳）：<strong>63万円</strong>、同居老親：58万円</td></tr>
+<tr><td>社会保険料控除</td><td>全額控除</td></tr>
+<tr><td>生命保険料控除</td><td>一般・介護・個人年金の3種。各最大<strong>40,000円</strong>（計最大120,000円）</td></tr>
+<tr><td>地震保険料控除</td><td>最大<strong>50,000円</strong></td></tr>
+<tr><td>医療費控除</td><td>（医療費 − 保険補填）− 10万円（所得200万円未満は所得の5%）</td></tr>
+<tr><td>寄附金控除</td><td>（寄附金 − 2,000円）が控除（ふるさと納税等）</td></tr>
+<tr><td>小規模企業共済等掛金控除</td><td>全額控除（iDeCoの掛金も対象）</td></tr>
+</table>
+      `},
+      { title:'💳 税額控除・確定申告', body:`
+<h4>主な税額控除</h4>
+<table><tr><th>種類</th><th>特徴</th></tr>
+<tr><td>住宅借入金等特別控除（住宅ローン控除）</td><td>年末残高の0.7%を最長13年間控除</td></tr>
+<tr><td>配当控除</td><td>総合課税を選択した配当所得の一定割合</td></tr>
+</table>
+<p><span class="tb-point">ポイント</span> 税額控除は所得控除より節税効果が大きい（課税所得ではなく税額から直接差し引く）。</p>
+<h4>確定申告が必要な人</h4>
+<ul>
+<li>給与収入が<strong>2,000万円超</strong></li>
+<li>給与を<strong>2カ所以上</strong>から受けている（一定の場合）</li>
+<li>給与以外の所得が<strong>20万円超</strong></li>
+<li>退職所得を除く各種所得が20万円超</li>
+</ul>
+<h4>青色申告の特典</h4>
+<ul>
+<li>青色申告特別控除：最大<strong>65万円</strong>（電子申告等の場合）または10万円</li>
+<li>青色事業専従者給与：家族への給与を必要経費に算入可能</li>
+<li>純損失の繰越控除：<strong>3年間</strong>の繰越が可能</li>
+</ul>
+      `}
+    ]
+  },
+  {
+    id:'realestate', label:'不動産', chapters:[
+      { title:'🗺 不動産の見方', body:`
+<h4>登記簿（登記記録）の構造</h4>
+<table><tr><th>部位</th><th>記載内容</th></tr>
+<tr><td>表題部</td><td>土地・建物の物理的状況（所在・面積等）</td></tr>
+<tr><td>権利部（甲区）</td><td><strong>所有権</strong>に関する事項</td></tr>
+<tr><td>権利部（乙区）</td><td><strong>所有権以外</strong>の権利（抵当権・地上権等）</td></tr>
+</table>
+<ul>
+<li>登記事項証明書は<strong>誰でも</strong>取得可能（利害関係不要）</li>
+<li>日本の不動産登記には<strong>公信力がない</strong>（登記を信じても保護されない場合あり）</li>
+</ul>
+<h4>不動産の価格（4つの公的価格）</h4>
+<table><tr><th>名称</th><th>目的</th><th>水準</th><th>発表機関</th></tr>
+<tr><td>公示価格</td><td>一般取引の指標</td><td>基準（100%）</td><td>国土交通省（毎年1/1時点、3月）</td></tr>
+<tr><td>基準地標準価格</td><td>公示価格の補完</td><td>ほぼ同等</td><td>都道府県（7/1時点、9月）</td></tr>
+<tr><td>相続税路線価</td><td>相続税・贈与税</td><td>公示価格の<strong>80%</strong></td><td>国税庁（毎年1/1時点、7月）</td></tr>
+<tr><td>固定資産税評価額</td><td>固定資産税等</td><td>公示価格の<strong>70%</strong>（3年ごと評価替え）</td><td>市区町村</td></tr>
+</table>
+      `},
+      { title:'📜 宅建業法・借地借家法', body:`
+<h4>媒介契約の種類</h4>
+<table><tr><th></th><th>一般</th><th>専任</th><th>専属専任</th></tr>
+<tr><td>他業者への依頼</td><td>可</td><td><strong>不可</strong></td><td>不可</td></tr>
+<tr><td>自己発見取引</td><td>可</td><td>可</td><td><strong>不可</strong></td></tr>
+<tr><td>業務報告頻度</td><td>なし</td><td><strong>2週間に1回</strong>以上</td><td><strong>1週間に1回</strong>以上</td></tr>
+<tr><td>指定流通機構（レインズ）登録</td><td>義務なし</td><td>7日以内</td><td>5日以内</td></tr>
+</table>
+<h4>手付金の上限（業者が売主の場合）</h4>
+<p>代金の<strong>20%</strong>以内（相手方が一般消費者の場合）</p>
+<h4>借地借家法（建物賃貸借）</h4>
+<ul>
+<li>普通借家：期間<strong>1年未満</strong>を定めた場合→<strong>期間の定めなし</strong>とみなす</li>
+<li>定期借家：期間満了で必ず終了（更新なし）</li>
+<li>定期借家の終了通知：期間1年以上の場合、期間満了の<strong>1年前〜6カ月前</strong>までに通知が必要</li>
+</ul>
+      `},
+      { title:'🏗 都市計画法・建築基準法', body:`
+<h4>都市計画区域の区分</h4>
+<ul>
+<li><strong>市街化区域</strong>：既に市街地を形成している区域＋おおむね<strong>10年以内</strong>に市街化を図る区域</li>
+<li><strong>市街化調整区域</strong>：市街化を<strong>抑制</strong>すべき区域</li>
+</ul>
+<h4>建築基準法の接道義務</h4>
+<p>敷地は幅員<strong>4m</strong>以上の道路に<strong>2m</strong>以上接すること（都市計画区域・準都市計画区域内）</p>
+<h4>2項道路（みなし道路）</h4>
+<ul>
+<li>幅員4m未満でも建築基準法上の道路とみなされる</li>
+<li>中心線から<strong>2m</strong>セットバックが必要</li>
+<li>セットバック部分は<strong>建蔽率・容積率の計算に算入不可</strong></li>
+</ul>
+<h4>建蔽率・容積率</h4>
+<div class="tb-box">
+建蔽率(%) ＝ 建築面積 ÷ 敷地面積 × 100<br>
+容積率(%) ＝ 延べ面積 ÷ 敷地面積 × 100
+</div>
+<ul>
+<li>防火地域と準防火地域にまたがる場合→<strong>全体に防火地域</strong>の規定が適用（厳しい方が優先）</li>
+</ul>
+<h4>農地法</h4>
+<ul>
+<li>農地転用：原則<strong>都道府県知事等</strong>の許可</li>
+<li>市街化区域内の農地転用：<strong>農業委員会への届出</strong>でOK（許可不要）</li>
+</ul>
+      `},
+      { title:'💰 不動産の税金', body:`
+<h4>取得時の税金</h4>
+<table><tr><th>税金</th><th>ポイント</th></tr>
+<tr><td>不動産取得税</td><td>相続は<strong>非課税</strong>。贈与は課税。</td></tr>
+<tr><td>登録免許税</td><td>登記時に課税</td></tr>
+<tr><td>印紙税</td><td>売買契約書等の課税文書に課税</td></tr>
+</table>
+<h4>保有時の税金</h4>
+<ul>
+<li>固定資産税：標準税率<strong>1.4%</strong>（市区町村税）</li>
+<li>小規模住宅用地（200㎡以下）：課税標準を評価額の<strong>1/6</strong>に軽減</li>
+<li>一般住宅用地（200㎡超）：課税標準を評価額の<strong>1/3</strong>に軽減</li>
+</ul>
+<h4>譲渡時の税金</h4>
+<table><tr><th></th><th>短期譲渡所得</th><th>長期譲渡所得</th></tr>
+<tr><td>所有期間（1/1時点）</td><td><strong>5年以下</strong></td><td><strong>5年超</strong></td></tr>
+<tr><td>税率（所得税＋住民税）</td><td>39.63%</td><td>20.315%</td></tr>
+</table>
+<ul>
+<li>取得費不明の場合：譲渡収入金額の<strong>5%</strong>を概算取得費として使用可</li>
+<li>3,000万円特別控除：居住用財産の場合。居住しなくなってから<strong>3年経過年の12/31</strong>まで</li>
+<li>軽減税率の特例：所有期間<strong>10年超</strong>の居住用財産で6,000万円以下の部分は<strong>14.21%</strong></li>
+</ul>
+      `},
+      { title:'🏢 不動産の有効活用', body:`
+<h4>主な活用方式</h4>
+<table><tr><th>方式</th><th>内容</th></tr>
+<tr><td>自己建設方式</td><td>土地所有者が自分で建物を建てて賃貸</td></tr>
+<tr><td>事業受託方式</td><td>専門業者（ディベロッパー）にすべて委託</td></tr>
+<tr><td>建設協力金方式</td><td>入居予定テナントから建設資金を<strong>借り受け</strong>て建築し、テナントに賃貸</td></tr>
+<tr><td>等価交換方式</td><td>土地を提供、ディベロッパーが建設費を負担し、出資割合に応じて権利を分配</td></tr>
+<tr><td>土地信託方式</td><td>信託銀行に土地を信託し、運用益を受け取る</td></tr>
+</table>
+<h4>収益性の指標</h4>
+<ul>
+<li><strong>表面利回り（グロス）</strong>：年間総収入 ÷ 総投資額 × 100</li>
+<li><strong>純利回り（NOI利回り）</strong>：年間純収益（収入−費用） ÷ 総投資額 × 100</li>
+</ul>
+      `}
+    ]
+  },
+  {
+    id:'inheritance', label:'相続・事業承継', chapters:[
+      { title:'📜 相続の基礎', body:`
+<h4>法定相続人と相続分</h4>
+<table><tr><th>相続人の組み合わせ</th><th>配偶者</th><th>その他</th></tr>
+<tr><td>配偶者＋子</td><td>1/2</td><td>子全体で1/2</td></tr>
+<tr><td>配偶者＋父母（直系尊属）</td><td>2/3</td><td>父母全体で1/3</td></tr>
+<tr><td>配偶者＋兄弟姉妹</td><td>3/4</td><td>兄弟姉妹全体で1/4</td></tr>
+</table>
+<p><span class="tb-point">ポイント</span> 相続順位：第1順位→子、第2順位→直系尊属（父母等）、第3順位→兄弟姉妹</p>
+<h4>代襲相続</h4>
+<ul>
+<li>子が先に死亡していた場合→<strong>孫</strong>が代襲相続（さらに死亡なら曾孫も可）</li>
+<li>兄弟姉妹が先に死亡していた場合→<strong>甥・姪</strong>が代襲相続（甥・姪までで再代襲なし）</li>
+</ul>
+<h4>遺留分</h4>
+<table><tr><th>相続人</th><th>遺留分の合計</th></tr>
+<tr><td>直系尊属のみ</td><td>法定相続分の<strong>1/3</strong></td></tr>
+<tr><td>その他（子・配偶者等）</td><td>法定相続分の<strong>1/2</strong></td></tr>
+</table>
+<p>兄弟姉妹には遺留分がない。</p>
+      `},
+      { title:'🏦 相続税の計算', body:`
+<h4>相続税の計算の流れ</h4>
+<div class="tb-box">
+① 正味の遺産額（課税価格の合計）を計算<br>
+② 基礎控除を差し引く → <strong>課税遺産総額</strong><br>
+　　基礎控除 ＝ 3,000万円 ＋ 600万円 × 法定相続人数<br>
+③ 法定相続分で按分して各人の税額を計算<br>
+④ 合計して相続税の総額を算出<br>
+⑤ 実際の取得額で按分して各人の税額確定<br>
+⑥ 各種控除（配偶者控除等）を適用
+</div>
+<h4>主な非課税財産</h4>
+<ul>
+<li>死亡保険金：<strong>500万円 × 法定相続人数</strong>まで非課税</li>
+<li>死亡退職金：<strong>500万円 × 法定相続人数</strong>まで非課税</li>
+<li>墓地・仏具等（生前購入したもの）</li>
+</ul>
+<h4>配偶者の税額軽減</h4>
+<p>配偶者が取得した財産が「<strong>1億6,000万円</strong>」または「法定相続分」のいずれか多い金額まで課税なし。</p>
+<h4>相続税の税率（一部）</h4>
+<table><tr><th>法定相続分に応じる取得金額</th><th>税率</th></tr>
+<tr><td>1,000万円以下</td><td>10%</td></tr>
+<tr><td>3,000万円以下</td><td>15%</td></tr>
+<tr><td>5,000万円以下</td><td>20%</td></tr>
+<tr><td>1億円以下</td><td>30%</td></tr>
+<tr><td>2億円以下</td><td>40%</td></tr>
+</table>
+      `},
+      { title:'🎁 贈与税の基礎', body:`
+<h4>暦年課税</h4>
+<ul>
+<li>1年間（1/1〜12/31）の贈与合計が<strong>110万円</strong>まで非課税（基礎控除）</li>
+<li>110万円超の部分に贈与税がかかる</li>
+</ul>
+<h4>贈与税の税率（特例税率：父母・祖父母からの贈与）</h4>
+<table><tr><th>基礎控除後の課税価格</th><th>特例税率</th></tr>
+<tr><td>200万円以下</td><td>10%</td></tr>
+<tr><td>400万円以下</td><td>15%</td></tr>
+<tr><td>600万円以下</td><td>20%</td></tr>
+<tr><td>1,000万円以下</td><td>30%</td></tr>
+<tr><td>1,500万円以下</td><td>40%</td></tr>
+</table>
+<h4>相続時精算課税制度</h4>
+<ul>
+<li>60歳以上の父母・祖父母から、<strong>18歳以上</strong>の子・孫への贈与</li>
+<li>累計<strong>2,500万円</strong>まで贈与税非課税（超えた分は一律<strong>20%</strong>）</li>
+<li>贈与者が死亡した時に相続財産に合算して相続税を精算</li>
+<li>毎年<strong>110万円</strong>の基礎控除あり（暦年課税とは別枠）</li>
+</ul>
+      `},
+      { title:'🏠 主な特例・評価方法', body:`
+<h4>小規模宅地等の特例</h4>
+<table><tr><th>区分</th><th>限度面積</th><th>減額割合</th></tr>
+<tr><td>特定居住用宅地等（自宅）</td><td><strong>330㎡</strong></td><td><strong>80%</strong>減</td></tr>
+<tr><td>特定事業用宅地等</td><td><strong>400㎡</strong></td><td><strong>80%</strong>減</td></tr>
+<tr><td>貸付事業用宅地等</td><td><strong>200㎡</strong></td><td><strong>50%</strong>減</td></tr>
+</table>
+<h4>土地の評価方法</h4>
+<ul>
+<li><strong>路線価方式</strong>：路線価 × 各種補正率 × 地積（市街地の土地）</li>
+<li><strong>倍率方式</strong>：固定資産税評価額 × 倍率（路線価がない地域）</li>
+</ul>
+<h4>生命保険の活用</h4>
+<ul>
+<li>非課税枠（500万円×法定相続人数）を活用することで相続税を軽減できる</li>
+<li>死亡保険金は<strong>受取人の固有財産</strong>であり、遺産分割の対象外</li>
+</ul>
+<h4>非上場株式の評価</h4>
+<ul>
+<li><strong>類似業種比準方式</strong>：上場類似会社の株価を基に算出（大会社）</li>
+<li><strong>純資産価額方式</strong>：会社の純資産をベースに算出（小会社）</li>
+<li><strong>配当還元方式</strong>：少数株主の評価に使用</li>
+</ul>
+      `}
+    ]
+  }
+];
+
+let tbCurrentSubject = 'life';
+
+function renderTextbook() {
+  // Subject buttons
+  const btnContainer = document.getElementById('tbSubjectBtns');
+  btnContainer.innerHTML = TEXTBOOK.map(s => `
+    <button class="tb-subject-btn${s.id === tbCurrentSubject ? ' active' : ''}"
+      onclick="tbSelectSubject('${s.id}')">${s.label}</button>
+  `).join('');
+
+  // Chapters
+  const subject = TEXTBOOK.find(s => s.id === tbCurrentSubject);
+  const content = document.getElementById('tbContent');
+  if (!subject) return;
+  content.innerHTML = subject.chapters.map((ch, i) => `
+    <div class="tb-chapter" id="tbch-${i}">
+      <div class="tb-chapter-header" onclick="tbToggleChapter(${i})">
+        <span>${ch.title}</span>
+        <i class="tb-chapter-arrow">▶</i>
+      </div>
+      <div class="tb-chapter-body">${ch.body}</div>
+    </div>
+  `).join('');
+}
+
+function tbSelectSubject(id) {
+  tbCurrentSubject = id;
+  renderTextbook();
+  window.scrollTo(0, 0);
+}
+
+function tbToggleChapter(i) {
+  const el = document.getElementById('tbch-' + i);
+  el.classList.toggle('open');
+}
+
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => switchTab(btn.dataset.tab));
+});
+
+function switchTab(tab) {
+  document.querySelectorAll('.tab-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.tab === tab);
+    b.setAttribute('aria-selected', b.dataset.tab === tab);
+  });
+  document.querySelectorAll('.screen').forEach(s => {
+    s.classList.toggle('active', s.id === `screen-${tab}`);
+  });
+  window.scrollTo(0, 0);
+  render();
+}
+
+// Reset data
+document.getElementById('resetBtn').addEventListener('click', () => {
+  if (!confirm('全ての学習データを初期化しますか？\n（問題データは残ります）')) return;
+  try { localStorage.removeItem(STORAGE_KEY); } catch(e) {}
+  state = defaultState();
+  const user = fbAuth.currentUser;
+  if (user) fsSaveState(user.uid, state);
+  quizSession = null;
+  // Reset quiz UI
+  document.getElementById('quizActive').classList.add('hidden');
+  document.getElementById('quizResult').classList.add('hidden');
+  document.getElementById('quizSetup').classList.remove('hidden');
+  switchTab('dashboard');
+  showToast('🔄 データを初期化しました');
+});
+
+// Theme toggle
+document.getElementById('themeToggle').addEventListener('click', () => {
+  const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+  document.documentElement.setAttribute('data-theme', isDark ? 'light' : 'dark');
+  document.getElementById('themeToggle').textContent = isDark ? '🌙' : '☀️';
+  try { localStorage.setItem('fp3_theme', isDark ? 'light' : 'dark'); } catch(e) {}
+});
+
+// Save exam date
+document.getElementById('saveExamDate').addEventListener('click', () => {
+  const val = document.getElementById('examDateInput').value;
+  if (!val) { showToast('試験日を入力してください'); return; }
+  if (new Date(val) <= new Date()) { showToast('試験日は未来の日付にしてください'); return; }
+  state.examDate = val;
+  showToast('✅ 試験日を保存しました');
+  render();
+});
+
+// Save study log
+document.getElementById('saveLog').addEventListener('click', () => {
+  const date = document.getElementById('logDate').value;
+  const subjectId = document.getElementById('logSubject').value;
+  const minutes = parseInt(document.getElementById('logMinutes').value) || 0;
+  const questions = parseInt(document.getElementById('logQuestions').value) || 0;
+  const correct = parseInt(document.getElementById('logCorrect').value) || 0;
+  const memo = document.getElementById('logMemo').value.trim();
+  if (!date) { showToast('日付を入力してください'); return; }
+  if (minutes <= 0) { showToast('学習時間を入力してください'); return; }
+  if (correct > questions) { showToast('正解数は問題数以下にしてください'); return; }
+  state.studyLogs.push({ date, subjectId, minutes, questions, correct, memo });
+  const sub = state.subjects[subjectId];
+  sub.totalMinutes += minutes;
+  sub.totalQuestions += questions;
+  sub.totalCorrect += correct;
+  if (!sub.lastStudyDate || date > sub.lastStudyDate) sub.lastStudyDate = date;
+  document.getElementById('logMinutes').value = '';
+  document.getElementById('logQuestions').value = '';
+  document.getElementById('logCorrect').value = '';
+  document.getElementById('logMemo').value = '';
+  showToast('✅ 記録しました！');
+  render();
+});
+
+// Mock exam modal
+document.getElementById('openMockModal').addEventListener('click', () => {
+  document.getElementById('mockModal').classList.add('show');
+  document.getElementById('mockDate').value = todayStr();
+});
+document.getElementById('closeMockModal').addEventListener('click', () => {
+  document.getElementById('mockModal').classList.remove('show');
+});
+document.getElementById('mockModal').addEventListener('click', (e) => {
+  if (e.target === e.currentTarget) document.getElementById('mockModal').classList.remove('show');
+});
+document.getElementById('saveMock').addEventListener('click', () => {
+  const name = document.getElementById('mockName').value.trim();
+  const date = document.getElementById('mockDate').value;
+  const totalScore = parseInt(document.getElementById('mockTotalScore').value) || 0;
+  if (!name) { showToast('模試名を入力してください'); return; }
+  if (!date) { showToast('実施日を入力してください'); return; }
+  if (totalScore < 0 || totalScore > 100) { showToast('得点は0〜100で入力してください'); return; }
+  const subjectScores = {};
+  SUBJECTS.forEach(s => { subjectScores[s.id] = parseInt(document.getElementById(`mock_${s.id}`).value) || 0; });
+  state.mockExams.push({ name, date, totalScore, subjectScores });
+  document.getElementById('mockModal').classList.remove('show');
+  document.getElementById('mockName').value = '';
+  document.getElementById('mockTotalScore').value = '';
+  SUBJECTS.forEach(s => { document.getElementById(`mock_${s.id}`).value = ''; });
+  showToast('✅ 模試結果を保存しました');
+  render();
+});
+
+// Quiz event handlers
+document.getElementById('quizSubjectChips').addEventListener('click', (e) => {
+  const chip = e.target.closest('.quiz-chip');
+  if (!chip) return;
+  const sid = chip.dataset.subject;
+  if (quizSelectedSubjects.has(sid)) quizSelectedSubjects.delete(sid);
+  else quizSelectedSubjects.add(sid);
+  renderQuizSetup();
+});
+
+document.getElementById('quizCountSelect').addEventListener('click', (e) => {
+  const btn = e.target.closest('.quiz-count-btn');
+  if (!btn) return;
+  quizSelectedCount = parseInt(btn.dataset.count);
+  renderQuizSetup();
+});
+
+document.getElementById('startQuiz').addEventListener('click', startQuiz);
+document.getElementById('quizNext').addEventListener('click', nextQuizQuestion);
+document.getElementById('quizQuit').addEventListener('click', quitQuiz);
+document.getElementById('quizBackToSetup').addEventListener('click', () => {
+  quitQuiz();
+  render();
+});
+document.getElementById('quizRetry').addEventListener('click', () => {
+  document.getElementById('quizResult').classList.add('hidden');
+  document.getElementById('quizSetup').classList.remove('hidden');
+  startQuiz();
+});
+
+// ===== Utilities =====
+function formatDate(dateStr) {
+  if (!dateStr) return '';
+  const d = new Date(dateStr);
+  return `${d.getMonth() + 1}/${d.getDate()}`;
+}
+
+function showToast(msg) {
+  const toast = document.getElementById('toast');
+  toast.textContent = msg;
+  toast.classList.add('show');
+  setTimeout(() => toast.classList.remove('show'), 2000);
+}
+
+// ===== Init =====
+(function init() {
+  // テーマ設定
+  const savedTheme = localStorage.getItem('fp3_theme');
+  const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+  if (savedTheme === 'dark' || (!savedTheme && prefersDark)) {
+    document.documentElement.setAttribute('data-theme', 'dark');
+    document.getElementById('themeToggle').textContent = '☀️';
+  }
+
+  // Googleログインボタン（リダイレクト方式：モバイルでも安定）
+  document.getElementById('googleSignInBtn').addEventListener('click', () => {
+    const btn = document.getElementById('googleSignInBtn');
+    btn.disabled = true;
+    btn.textContent = '処理中...';
+    const provider = new firebase.auth.GoogleAuthProvider();
+    fbAuth.signInWithRedirect(provider).catch(e => {
+      btn.disabled = false;
+      btn.innerHTML = `<svg viewBox="0 0 48 48" style="width:20px;height:20px"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.08 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.31-8.16 2.31-6.26 0-11.57-3.59-13.46-8.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg> Googleでログイン`;
+      alert('ログインに失敗しました: ' + e.message);
+    });
+  });
+
+  // ユーザーチップ（クリックでログアウト確認）
+  document.getElementById('userChip').addEventListener('click', () => {
+    if (confirm('ログアウトしますか？')) fbAuth.signOut();
+  });
+
+  // リダイレクトログイン後の結果を処理
+  fbAuth.getRedirectResult().catch(e => {
+    if (e.code !== 'auth/no-current-user') {
+      alert('ログインに失敗しました: ' + e.message);
+    }
+  });
+
+  // 認証状態の監視
+  fbAuth.onAuthStateChanged(async (user) => {
+    if (!user) {
+      // 未ログイン → 認証画面を表示
+      document.getElementById('authOverlay').classList.remove('hidden');
+      document.getElementById('loadingOverlay').classList.add('hidden');
+      document.getElementById('userChip').classList.add('hidden');
+      return;
+    }
+
+    // ログイン済み → ローディング表示
+    document.getElementById('authOverlay').classList.add('hidden');
+    document.getElementById('loadingOverlay').classList.remove('hidden');
+
+    // ユーザー情報をヘッダーに表示
+    const chip = document.getElementById('userChip');
+    const photo = document.getElementById('userPhoto');
+    const name  = document.getElementById('userName');
+    photo.src = user.photoURL || '';
+    photo.style.display = user.photoURL ? '' : 'none';
+    name.textContent = user.displayName || user.email;
+    chip.classList.remove('hidden');
+
+    // Firestoreからデータ読み込み
+    const fsState = await fsLoadState(user.uid);
+    if (fsState) {
+      state = fsState;
+    } else {
+      // 初回：ローカルデータがあれば移行
+      const local = loadStateFromLocal();
+      if (local) {
+        state = local;
+        fsSaveState(user.uid, state); // Firestoreへ移行
+        showToast('📤 既存データをクラウドに移行しました');
+      }
+    }
+
+    document.getElementById('loadingOverlay').classList.add('hidden');
+    render();
+  });
+
+  // Service Worker（PWA）
+  if ('serviceWorker' in navigator) {
+    const swCode = `
+      const CACHE = 'fp3-v2';
+      self.addEventListener('install', e => { self.skipWaiting(); });
+      self.addEventListener('activate', e => { e.waitUntil(self.clients.claim()); });
+      self.addEventListener('fetch', e => {
+        e.respondWith(fetch(e.request).catch(() => caches.match(e.request)));
+      });
+    `;
+    const blob = new Blob([swCode], { type: 'application/javascript' });
+    navigator.serviceWorker.register(URL.createObjectURL(blob)).catch(() => {});
+  }
+})();
+</script>
+</body>
+</html>
