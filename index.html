@@ -352,6 +352,19 @@ body {
 .qr-explanation { background:var(--accent-light); border-left:3px solid var(--accent); border-radius:6px; padding:10px 12px; margin-bottom:10px; line-height:1.7; }
 .qr-explanation-title { font-weight:700; color:var(--accent); display:block; margin-bottom:4px; font-size:12px; }
 .qr-tb-btn { width:100%; margin-top:4px; }
+/* ===== Question List ===== */
+.ql-item { border:1px solid var(--border); border-radius:10px; margin-bottom:6px; overflow:hidden; background:var(--surface); }
+.ql-item-header { display:flex; align-items:center; gap:8px; padding:10px 12px; cursor:pointer; user-select:none; }
+.ql-item-header:hover { background:var(--bg); }
+.ql-status { font-size:13px; width:22px; text-align:center; flex-shrink:0; }
+.ql-q-text { flex:1; font-size:13px; line-height:1.4; color:var(--text); }
+.ql-item-body { display:none; padding:0 12px 12px; font-size:13px; }
+.ql-item.open .ql-item-body { display:block; }
+.ql-item.open .ql-arrow { transform:rotate(90deg); }
+.ql-arrow { transition:transform 0.25s; font-style:normal; display:inline-block; font-size:11px; color:var(--text-secondary); flex-shrink:0; }
+.cycle-tag { font-size:10px; background:var(--accent); color:#fff; padding:1px 5px; border-radius:8px; margin-left:4px; vertical-align:middle; }
+.cycle-bar { height:8px; background:var(--border); border-radius:4px; margin:6px 0; overflow:hidden; }
+.cycle-fill { height:100%; background:var(--accent); border-radius:4px; transition:width 0.3s; }
 /* ===== Utility ===== */
 .text-danger { color: var(--danger); }
 .text-success { color: var(--success); }
@@ -586,10 +599,21 @@ body {
           <button class="quiz-count-btn" data-count="0">全問</button>
         </div>
         <button class="btn btn-primary mt-8" id="startQuiz">クイズを開始</button>
+        <div id="quizCycleProgress" class="mt-12"></div>
       </div>
       <div class="card">
         <div class="card-title">📊 クイズ成績</div>
         <div id="quizHistory"></div>
+      </div>
+      <div class="card">
+        <div class="flex-between" style="cursor:pointer" onclick="toggleQuestionList()">
+          <div class="card-title" style="margin:0">📋 問題リスト</div>
+          <i id="qListArrow" class="ql-arrow">▶</i>
+        </div>
+        <div id="questionListPanel" style="display:none;margin-top:12px">
+          <div id="qlSubjectBtns" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px"></div>
+          <div id="qlContent"></div>
+        </div>
       </div>
       <div class="card" style="cursor:pointer" onclick="switchTab('mock')">
         <div style="display:flex;align-items:center;gap:10px">
@@ -1499,6 +1523,7 @@ function defaultState() {
     mockExams: [],
     todayDone: {},
     quizResults: [],
+    quizCycleAnswered: [],
     version: 2,
   };
 }
@@ -1509,6 +1534,7 @@ function loadStateFromLocal() {
     if (raw) {
       const parsed = JSON.parse(raw);
       if (!parsed.quizResults) parsed.quizResults = [];
+      if (!parsed.quizCycleAnswered) parsed.quizCycleAnswered = [];
       return parsed;
     }
   } catch(e) {}
@@ -1998,6 +2024,8 @@ function renderQuizSetup() {
 
   // History
   renderQuizHistory();
+  // Cycle progress
+  renderCycleProgress();
 }
 
 function renderQuizHistory() {
@@ -2025,11 +2053,29 @@ function startQuiz() {
   const subjectIds = [...quizSelectedSubjects];
   if (subjectIds.length === 0) { showToast('分野を1つ以上選んでください'); return; }
 
-  let questions = QUESTION_BANK.filter(q => subjectIds.includes(q.subjectId));
-  if (questions.length === 0) { showToast('選択した分野に問題がありません'); return; }
+  const allSubjectQuestions = QUESTION_BANK.filter(q => subjectIds.includes(q.subjectId));
+  if (allSubjectQuestions.length === 0) { showToast('選択した分野に問題がありません'); return; }
+
+  // 1周機能：このサイクルで解答済みの問題を除外
+  const cycleAnswered = new Set(state.quizCycleAnswered || []);
+  let pool = allSubjectQuestions.filter(q => !cycleAnswered.has(q.id));
+
+  if (pool.length === 0) {
+    // 選択分野の問題を1周完了
+    if (confirm('選択した分野の問題をすべて1周しました！🎉\nこの分野のサイクルをリセットして最初からやり直しますか？')) {
+      // 選択分野のIDだけ解除（他分野の進捗は保持）
+      const resetIds = new Set(allSubjectQuestions.map(q => q.id));
+      state.quizCycleAnswered = (state.quizCycleAnswered || []).filter(id => !resetIds.has(id));
+      saveState();
+      renderCycleProgress();
+      pool = [...allSubjectQuestions];
+    } else {
+      return;
+    }
+  }
 
   // Shuffle
-  questions = shuffleArray([...questions]);
+  let questions = shuffleArray(pool);
 
   // Limit count
   const count = quizSelectedCount === 0 ? questions.length : Math.min(quizSelectedCount, questions.length);
@@ -2229,7 +2275,20 @@ function finishQuiz() {
     if (!sub.lastStudyDate || todayStr() > sub.lastStudyDate) sub.lastStudyDate = todayStr();
   });
 
+  // 1周機能：解答した問題IDをサイクル記録に追加
+  const answeredIds = quizSession.questions.map(q => q.id);
+  state.quizCycleAnswered = [...new Set([...(state.quizCycleAnswered || []), ...answeredIds])];
+
   saveState();
+
+  // 全問題1周完了チェック
+  if (state.quizCycleAnswered.length >= QUESTION_BANK.length) {
+    setTimeout(() => {
+      showToast('🎊 全問題1周完了！おめでとうございます！');
+      state.quizCycleAnswered = [];
+      saveState();
+    }, 2500);
+  }
 
   // Show result screen
   document.getElementById('quizActive').classList.add('hidden');
@@ -2297,6 +2356,110 @@ function finishQuiz() {
     </div>
     <div style="padding:12px">${qItems}</div>
   </div>`;
+}
+
+// ===== Cycle Progress =====
+function renderCycleProgress() {
+  const el = document.getElementById('quizCycleProgress');
+  if (!el) return;
+  const total = QUESTION_BANK.length;
+  const answered = (state.quizCycleAnswered || []).length;
+  const remaining = total - answered;
+  const pct = Math.round((answered / total) * 100);
+  el.innerHTML = `
+    <div style="font-size:12px;color:var(--text-secondary);margin-bottom:4px">
+      🔄 1周進捗: <strong>${answered} / ${total}問</strong> 解答済み（残り ${remaining}問）
+    </div>
+    <div class="cycle-bar"><div class="cycle-fill" style="width:${pct}%"></div></div>
+    ${answered > 0 ? `<button class="btn btn-sm btn-secondary" style="margin-top:8px;font-size:12px" onclick="resetQuizCycle()">↩ サイクルをリセット</button>` : ''}
+  `;
+}
+
+function resetQuizCycle() {
+  if (!confirm('1周のサイクルをリセットして最初からやり直しますか？\n（これまでの学習履歴は消えません）')) return;
+  state.quizCycleAnswered = [];
+  saveState();
+  renderCycleProgress();
+  showToast('サイクルをリセットしました');
+}
+
+// ===== Question List =====
+let qlCurrentSubject = 'life';
+let qlOpen = false;
+
+function toggleQuestionList() {
+  qlOpen = !qlOpen;
+  const panel = document.getElementById('questionListPanel');
+  const arrow = document.getElementById('qListArrow');
+  if (panel) panel.style.display = qlOpen ? 'block' : 'none';
+  if (arrow) arrow.style.transform = qlOpen ? 'rotate(90deg)' : '';
+  if (qlOpen) renderQuestionList();
+}
+
+function qlSelectSubject(id) {
+  qlCurrentSubject = id;
+  renderQuestionList();
+}
+
+function getQuestionStats() {
+  const stats = {};
+  if (!state.quizResults) return stats;
+  state.quizResults.forEach(r => {
+    if (r.answers) {
+      r.answers.forEach(a => {
+        stats[a.questionId] = { lastCorrect: a.isCorrect };
+      });
+    }
+  });
+  return stats;
+}
+
+function renderQuestionList() {
+  const btnEl = document.getElementById('qlSubjectBtns');
+  if (!btnEl) return;
+  btnEl.innerHTML = SUBJECTS.map(s => {
+    const total = QUESTION_BANK.filter(q => q.subjectId === s.id).length;
+    const done = (state.quizCycleAnswered || []).filter(id =>
+      QUESTION_BANK.find(q => q.id === id && q.subjectId === s.id)
+    ).length;
+    const label = done === total ? `${s.short} ✓` : `${s.short} ${done}/${total}`;
+    return `<button class="tb-subject-btn${s.id === qlCurrentSubject ? ' active' : ''}" onclick="qlSelectSubject('${s.id}')">${label}</button>`;
+  }).join('');
+
+  const stats = getQuestionStats();
+  const cycleAnswered = new Set(state.quizCycleAnswered || []);
+  const subjectQs = QUESTION_BANK.filter(q => q.subjectId === qlCurrentSubject);
+
+  const contentEl = document.getElementById('qlContent');
+  if (!contentEl) return;
+  contentEl.innerHTML = subjectQs.map(q => {
+    const stat = stats[q.id];
+    const inCycle = cycleAnswered.has(q.id);
+    let statusIcon = '－', statusColor = 'var(--text-secondary)';
+    if (stat) {
+      statusIcon = stat.lastCorrect ? '✅' : '❌';
+      statusColor = stat.lastCorrect ? 'var(--success)' : 'var(--danger)';
+    }
+    const cycleTag = inCycle ? '<span class="cycle-tag">済</span>' : '';
+    const correctAnswerText = q.type === 'ox'
+      ? (q.answer ? '○ 正しい' : '× 誤り')
+      : (q.choices?.[q.answer] || '-');
+    return `<div class="ql-item" id="ql-${q.id}">
+      <div class="ql-item-header" onclick="document.getElementById('ql-${q.id}').classList.toggle('open')">
+        <span class="ql-status" style="color:${statusColor}">${statusIcon}</span>
+        <span class="ql-q-text">${q.question.slice(0, 42)}${q.question.length > 42 ? '…' : ''}${cycleTag}</span>
+        <i class="ql-arrow">▶</i>
+      </div>
+      <div class="ql-item-body">
+        <p class="qr-full-q">${q.question}</p>
+        <div class="qr-answers">
+          <div class="qr-answer correct">正解: <strong>${correctAnswerText}</strong></div>
+        </div>
+        ${q.explanation ? `<div class="qr-explanation"><span class="qr-explanation-title">💡 解説</span>${q.explanation}</div>` : ''}
+        ${q.source ? `<div class="text-sm text-secondary" style="margin-top:4px">📌 出典: ${q.source}</div>` : ''}
+      </div>
+    </div>`;
+  }).join('');
 }
 
 function qrExpandWrong() {
